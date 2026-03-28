@@ -1,0 +1,401 @@
+# Resurface - Technical Architecture
+
+## System Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         iOS Device                               │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────────┐  │
+│  │ Main App     │    │ Share        │    │ Widget           │  │
+│  │ (SwiftUI)    │    │ Extension    │    │ Extension        │  │
+│  └──────┬───────┘    └──────┬───────┘    └────────┬─────────┘  │
+│         │                   │                      │            │
+│         └───────────────────┼──────────────────────┘            │
+│                             │                                    │
+│                    ┌────────▼────────┐                          │
+│                    │ App Group       │                          │
+│                    │ Shared Container│                          │
+│                    └────────┬────────┘                          │
+│                             │                                    │
+│         ┌───────────────────┼───────────────────┐               │
+│         │                   │                   │               │
+│  ┌──────▼──────┐    ┌───────▼───────┐   ┌──────▼──────┐        │
+│  │ SwiftData   │    │ File Storage  │   │ On-Device   │        │
+│  │ (SQLite)    │    │ (Media/PDFs)  │   │ ML Models   │        │
+│  └─────────────┘    └───────────────┘   └─────────────┘        │
+│                                                                  │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │   Cloud Services     │
+                    ├──────────────────────┤
+                    │ • Claude API (AI)    │
+                    │ • iCloud (Sync)      │
+                    └──────────────────────┘
+```
+
+## App Group Configuration
+
+### Container Structure
+
+```
+group.com.keenanmeyer.resurface/
+├── Library/
+│   └── Application Support/
+│       └── default.store          # SwiftData database
+├── Documents/
+│   ├── media/                     # Images, screenshots
+│   │   └── {uuid}.{ext}
+│   ├── thumbnails/                # Cached thumbnails
+│   │   └── {uuid}_thumb.jpg
+│   └── pdfs/                      # PDF files
+│       └── {uuid}.pdf
+└── tmp/                           # Processing scratch space
+```
+
+### Entitlements
+
+Both main app and Share Extension need:
+```xml
+<key>com.apple.security.application-groups</key>
+<array>
+    <string>group.com.keenanmeyer.resurface</string>
+</array>
+```
+
+## Data Layer
+
+### SwiftData Models
+
+```swift
+// Core entity - saved content item
+@Model
+class BookmarkItem {
+    @Attribute(.unique) var id: UUID
+    var createdAt: Date
+    var updatedAt: Date
+
+    // Content
+    var contentType: ContentType      // url, image, screenshot, video, text, pdf
+    var title: String
+    var rawText: String?              // Extracted/OCR text
+    var sourceURL: URL?
+    var sourceApp: String?            // Bundle ID
+
+    // Media
+    var thumbnailPath: String?
+    var mediaPath: String?
+
+    // Organization (AI-generated)
+    var category: Category?
+    var tags: [Tag]
+    var keyInsights: [String]
+    var contentSubtype: String?       // article, thread, recipe, product, etc.
+
+    // Status
+    var aiProcessingStatus: ProcessingStatus
+    var isArchived: Bool
+    var isFavorite: Bool
+
+    // Relationships
+    var webContent: WebContent?
+}
+
+@Model
+class Category {
+    @Attribute(.unique) var id: UUID
+    var name: String
+    var icon: String                  // SF Symbol
+    var color: String                 // Hex
+    var isSystem: Bool
+    var items: [BookmarkItem]
+}
+
+@Model
+class Tag {
+    @Attribute(.unique) var id: UUID
+    var name: String
+    var usageCount: Int
+    var isAutoGenerated: Bool
+    var items: [BookmarkItem]
+}
+
+@Model
+class WebContent {
+    var id: UUID
+    var url: URL
+    var extractedText: String
+    var author: String?
+    var publishDate: Date?
+    var siteName: String?
+    var item: BookmarkItem?
+}
+```
+
+### Database Queries
+
+Common query patterns:
+```swift
+// Recent items
+@Query(sort: \BookmarkItem.createdAt, order: .reverse)
+var recentItems: [BookmarkItem]
+
+// Items by category
+@Query(filter: #Predicate<BookmarkItem> { $0.category?.name == "Health" })
+var healthItems: [BookmarkItem]
+
+// Full-text search (via custom predicate)
+func search(query: String) -> [BookmarkItem]
+```
+
+## Share Extension Architecture
+
+### Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Share Extension Flow                      │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  1. User taps Share → Share Sheet → Resurface                │
+│                                                              │
+│  2. ShareViewController receives NSExtensionItem            │
+│     └── Contains attachments: [NSItemProvider]              │
+│                                                              │
+│  3. ContentExtractorRegistry.extract(attachments)           │
+│     ├── URLExtractor (if URL)                               │
+│     ├── ImageExtractor (if image/screenshot)                │
+│     ├── TextExtractor (if plain text)                       │
+│     └── PDFExtractor (if PDF)                               │
+│                                                              │
+│  4. Create BookmarkItem with status = .pending              │
+│                                                              │
+│  5. Save to shared SwiftData container                      │
+│                                                              │
+│  6. Post notification to main app (if running)              │
+│                                                              │
+│  7. Show success animation → auto-dismiss                   │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Content Extractors
+
+```swift
+protocol ContentExtractor {
+    static var supportedTypes: [UTType] { get }
+    func canHandle(_ provider: NSItemProvider) -> Bool
+    func extract(from provider: NSItemProvider) async throws -> ExtractedContent
+}
+
+struct ExtractedContent {
+    var contentType: ContentType
+    var title: String?
+    var text: String?
+    var url: URL?
+    var imageData: Data?
+    var metadata: [String: Any]
+}
+```
+
+### Memory Constraints
+
+Share Extensions have a **120MB memory limit**. Strategy:
+- Extract raw content only (no AI processing)
+- Save media to disk immediately
+- Defer all heavy processing to main app
+- Keep UI minimal (no complex animations)
+
+## AI Processing Pipeline
+
+### Pipeline Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    AI Processing Pipeline                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌─────────────┐                                            │
+│  │ New Item    │ (status: pending)                          │
+│  └──────┬──────┘                                            │
+│         │                                                    │
+│         ▼                                                    │
+│  ┌─────────────────────────────────────────────┐            │
+│  │ Step 1: On-Device Processing (Free)         │            │
+│  │ • OCR for images (Vision)                   │            │
+│  │ • Language detection (NaturalLanguage)      │            │
+│  │ • Basic text extraction                     │            │
+│  └──────┬──────────────────────────────────────┘            │
+│         │                                                    │
+│         ▼                                                    │
+│  ┌─────────────────────────────────────────────┐            │
+│  │ Step 2: Web Scraping (if URL)               │            │
+│  │ • Fetch page content                        │            │
+│  │ • Extract article text                      │            │
+│  │ • Get metadata (author, date, site)         │            │
+│  └──────┬──────────────────────────────────────┘            │
+│         │                                                    │
+│         ▼                                                    │
+│  ┌─────────────────────────────────────────────┐            │
+│  │ Step 3: Claude API Processing               │            │
+│  │ • Categorization                            │            │
+│  │ • Tag generation                            │            │
+│  │ • Key insights extraction                   │            │
+│  │ • Content subtype detection                 │            │
+│  └──────┬──────────────────────────────────────┘            │
+│         │                                                    │
+│         ▼                                                    │
+│  ┌─────────────┐                                            │
+│  │ Item Ready  │ (status: completed)                        │
+│  └─────────────┘                                            │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Claude API Integration
+
+```swift
+struct ClaudeService {
+    func analyzeContent(_ input: AnalysisInput) async throws -> ContentAnalysis
+}
+
+struct AnalysisInput {
+    var title: String
+    var text: String
+    var contentType: ContentType
+    var sourceURL: URL?
+}
+
+struct ContentAnalysis {
+    var category: String           // One of predefined categories
+    var tags: [String]             // 3-8 tags
+    var keyInsights: [String]      // 2-5 bullet points
+    var contentSubtype: String     // article, thread, recipe, etc.
+    var summary: String?           // Optional summary
+}
+```
+
+### Background Processing
+
+```swift
+// Use BackgroundTasks framework
+BGTaskScheduler.shared.register(
+    forTaskWithIdentifier: "com.keenanmeyer.resurface.process",
+    using: nil
+) { task in
+    handleProcessing(task: task as! BGProcessingTask)
+}
+
+// Process pending items
+func handleProcessing(task: BGProcessingTask) {
+    let items = fetchPendingItems()
+    for item in items {
+        await processItem(item)
+    }
+    task.setTaskCompleted(success: true)
+}
+```
+
+## UI Architecture
+
+### Navigation Structure
+
+```
+TabView
+├── HomeTab
+│   └── NavigationStack
+│       ├── HomeView (AI picks + topics)
+│       ├── CategoryView
+│       └── BookmarkDetailView
+├── LibraryTab
+│   └── NavigationStack
+│       ├── LibraryView (all items, filterable)
+│       └── BookmarkDetailView
+├── SearchTab
+│   └── NavigationStack
+│       ├── SearchView
+│       └── BookmarkDetailView
+└── SettingsTab
+    └── NavigationStack
+        └── SettingsView
+```
+
+### View Components
+
+```
+Views/
+├── Home/
+│   ├── HomeView.swift
+│   ├── AIPicksSection.swift
+│   └── TopicsGrid.swift
+├── Library/
+│   ├── LibraryView.swift
+│   ├── BookmarkRowView.swift
+│   └── FilterSheet.swift
+├── Search/
+│   └── SearchView.swift
+├── Detail/
+│   ├── BookmarkDetailView.swift
+│   └── InsightsCard.swift
+├── Settings/
+│   └── SettingsView.swift
+└── Components/
+    ├── ThumbnailView.swift
+    ├── TagsView.swift
+    └── CategoryBadge.swift
+```
+
+## Security
+
+### API Key Storage
+
+```swift
+// Development: Environment variable
+let apiKey = ProcessInfo.processInfo.environment["CLAUDE_API_KEY"]
+
+// Production: Keychain
+let apiKey = KeychainService.get(key: "claude_api_key")
+```
+
+### Data Privacy
+
+- All data stored locally in App Group container
+- iCloud sync uses user's own iCloud account
+- Claude API calls send content for processing (user consented)
+- No analytics or tracking in MVP
+
+## Performance Targets
+
+| Metric | Target |
+|--------|--------|
+| Share Extension completion | < 1 second perceived |
+| App launch to content visible | < 500ms |
+| Search results display | < 200ms |
+| AI processing per item | < 30 seconds |
+| Memory usage (main app) | < 100MB |
+| Memory usage (extension) | < 80MB |
+
+## Error Handling
+
+### Graceful Degradation
+
+| Failure | Fallback |
+|---------|----------|
+| Network unavailable | Queue for later processing |
+| Claude API error | Retry with exponential backoff |
+| Web scraping fails | Use URL metadata only |
+| OCR fails | Store image without text |
+| iCloud unavailable | Local-only mode |
+
+### Error Types
+
+```swift
+enum ResurfaceError: Error {
+    case extractionFailed(reason: String)
+    case networkUnavailable
+    case apiError(statusCode: Int, message: String)
+    case storageError(underlying: Error)
+    case processingTimeout
+}
+```
