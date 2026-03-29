@@ -7,44 +7,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
-                // General Section
-                Section {
-                    Toggle(isOn: $enableNotifications) {
-                        Label {
-                            Text("Notifications")
-                                .foregroundStyle(ResurfaceTheme.Colors.textPrimary)
-                        } icon: {
-                            Image(systemName: "bell.fill")
-                                .foregroundStyle(ResurfaceTheme.Colors.accent)
-                        }
-                    }
-                    .tint(ResurfaceTheme.Colors.accent)
-                } header: {
-                    Text("General")
-                        .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
-                }
-                .listRowBackground(ResurfaceTheme.Colors.surfaceFallback)
-
-                // AI Processing Section
-                Section {
-                    NavigationLink {
-                        APISettingsView()
-                    } label: {
-                        Label {
-                            Text("API Configuration")
-                                .foregroundStyle(ResurfaceTheme.Colors.textPrimary)
-                        } icon: {
-                            Image(systemName: "brain")
-                                .foregroundStyle(ResurfaceTheme.Colors.accent)
-                        }
-                    }
-                } header: {
-                    Text("AI Processing")
-                        .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
-                }
-                .listRowBackground(ResurfaceTheme.Colors.surfaceFallback)
-
-                // Data Section
+                // Categories Section
                 Section {
                     NavigationLink {
                         CategoryManagementView()
@@ -57,7 +20,54 @@ struct SettingsView: View {
                                 .foregroundStyle(ResurfaceTheme.Colors.accent)
                         }
                     }
+                } header: {
+                    Text("Organization")
+                        .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+                }
+                .listRowBackground(ResurfaceTheme.Colors.surfaceFallback)
 
+                // AI Processing Section
+                Section {
+                    NavigationLink {
+                        AIStatusView()
+                    } label: {
+                        Label {
+                            Text("AI Processing")
+                                .foregroundStyle(ResurfaceTheme.Colors.textPrimary)
+                        } icon: {
+                            Image(systemName: "sparkles")
+                                .foregroundStyle(ResurfaceTheme.Colors.accent)
+                        }
+                    }
+                } header: {
+                    Text("AI")
+                        .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+                }
+                .listRowBackground(ResurfaceTheme.Colors.surfaceFallback)
+
+                // Notifications Section
+                Section {
+                    Toggle(isOn: $enableNotifications) {
+                        Label {
+                            Text("Resurface Reminders")
+                                .foregroundStyle(ResurfaceTheme.Colors.textPrimary)
+                        } icon: {
+                            Image(systemName: "bell.fill")
+                                .foregroundStyle(ResurfaceTheme.Colors.accent)
+                        }
+                    }
+                    .tint(ResurfaceTheme.Colors.accent)
+                } header: {
+                    Text("Notifications")
+                        .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+                } footer: {
+                    Text("Get notified when it's time to revisit saved content.")
+                        .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+                }
+                .listRowBackground(ResurfaceTheme.Colors.surfaceFallback)
+
+                // Data Section
+                Section {
                     NavigationLink {
                         Text("Export")
                             .navigationTitle("Export Data")
@@ -106,18 +116,84 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - API Settings View
+// MARK: - AI Status View
 
-struct APISettingsView: View {
-    @AppStorage("claudeAPIKey") private var apiKey = ""
+struct AIStatusView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query private var pendingItems: [BookmarkItem]
+    @Query private var failedItems: [BookmarkItem]
+    @Query private var completedItems: [BookmarkItem]
+
+    @State private var isRetrying = false
+
+    init() {
+        let pendingPredicate = #Predicate<BookmarkItem> { $0.aiProcessingStatusRaw == "pending" }
+        let failedPredicate = #Predicate<BookmarkItem> { $0.aiProcessingStatusRaw == "failed" }
+        let completedPredicate = #Predicate<BookmarkItem> { $0.aiProcessingStatusRaw == "completed" }
+
+        _pendingItems = Query(filter: pendingPredicate)
+        _failedItems = Query(filter: failedPredicate)
+        _completedItems = Query(filter: completedPredicate)
+    }
 
     var body: some View {
         List {
+            // Status Overview
             Section {
-                SecureField("Claude API Key", text: $apiKey)
-                    .foregroundStyle(ResurfaceTheme.Colors.textPrimary)
-            } footer: {
-                Text("Your API key is stored securely on device and is used for AI-powered categorization and insights.")
+                statusRow(label: "Analyzed", count: completedItems.count, icon: "checkmark.circle.fill", color: .green)
+                statusRow(label: "Pending", count: pendingItems.count, icon: "clock.fill", color: .orange)
+                statusRow(label: "Failed", count: failedItems.count, icon: "exclamationmark.triangle.fill", color: .red)
+            } header: {
+                Text("Status")
+                    .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+            }
+            .listRowBackground(ResurfaceTheme.Colors.surfaceFallback)
+
+            // Retry Section
+            if !failedItems.isEmpty || !pendingItems.isEmpty {
+                Section {
+                    Button {
+                        retryAIProcessing()
+                    } label: {
+                        HStack {
+                            if isRetrying {
+                                ProgressView()
+                                    .tint(ResurfaceTheme.Colors.accent)
+                                Text("Processing...")
+                                    .foregroundStyle(ResurfaceTheme.Colors.textSecondary)
+                            } else {
+                                Image(systemName: "arrow.clockwise")
+                                    .foregroundStyle(ResurfaceTheme.Colors.accent)
+                                Text("Retry AI Processing")
+                                    .foregroundStyle(ResurfaceTheme.Colors.textPrimary)
+                            }
+                            Spacer()
+                            Text("\(pendingItems.count + failedItems.count) items")
+                                .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+                        }
+                    }
+                    .disabled(isRetrying)
+                } header: {
+                    Text("Actions")
+                        .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+                }
+                .listRowBackground(ResurfaceTheme.Colors.surfaceFallback)
+            }
+
+            // About AI
+            Section {
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    Text("AI analyzes your saved content through the lens of each category, extracting relevant information and ignoring the rest.")
+                        .font(Typography.subheadline)
+                        .foregroundStyle(ResurfaceTheme.Colors.textSecondary)
+
+                    Text("Processing happens automatically when you save new content.")
+                        .font(Typography.caption)
+                        .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+                }
+                .padding(.vertical, Spacing.xs)
+            } header: {
+                Text("About")
                     .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
             }
             .listRowBackground(ResurfaceTheme.Colors.surfaceFallback)
@@ -125,10 +201,30 @@ struct APISettingsView: View {
         .scrollContentBackground(.hidden)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ResurfaceTheme.Colors.backgroundFallback.ignoresSafeArea())
-        .navigationTitle("API Configuration")
+        .navigationTitle("AI Processing")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(ResurfaceTheme.Colors.backgroundFallback, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
+    }
+
+    private func statusRow(label: String, count: Int, icon: String, color: Color) -> some View {
+        HStack {
+            Image(systemName: icon)
+                .foregroundStyle(color)
+            Text(label)
+                .foregroundStyle(ResurfaceTheme.Colors.textPrimary)
+            Spacer()
+            Text("\(count)")
+                .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+        }
+    }
+
+    private func retryAIProcessing() {
+        isRetrying = true
+        Task {
+            await BackgroundProcessor.shared.retryAIProcessing(in: modelContext)
+            isRetrying = false
+        }
     }
 }
 
@@ -136,49 +232,91 @@ struct APISettingsView: View {
 
 struct CategoryManagementView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Category.name) private var categories: [Category]
+    @Query(filter: #Predicate<Category> { !$0.isArchived }, sort: \Category.sortOrder)
+    private var activeCategories: [Category]
+
+    @Query(filter: #Predicate<Category> { $0.isArchived }, sort: \Category.sortOrder)
+    private var archivedCategories: [Category]
+
+    @State private var showCreateCategory = false
+    @State private var categoryToEdit: Category?
+    @State private var showArchived = false
 
     var body: some View {
         List {
-            ForEach(categories) { category in
-                HStack(spacing: Spacing.sm) {
-                    // Icon with color
-                    ZStack {
-                        Circle()
-                            .fill(Color(hex: category.color)?.opacity(0.2) ?? ResurfaceTheme.Colors.accentSubtle)
-                            .frame(width: 36, height: 36)
+            // Active Categories
+            Section {
+                ForEach(activeCategories) { category in
+                    CategoryRow(
+                        category: category,
+                        onEdit: { categoryToEdit = category },
+                        onSetDefault: { setAsDefault(category) },
+                        onArchive: { archive(category) }
+                    )
+                }
+                .onMove(perform: moveCategories)
+                .listRowBackground(ResurfaceTheme.Colors.surfaceFallback)
 
-                        Image(systemName: category.icon)
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(Color(hex: category.color) ?? ResurfaceTheme.Colors.accent)
-                    }
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(category.name)
-                            .font(Typography.subheadlineMedium)
-                            .foregroundStyle(ResurfaceTheme.Colors.textPrimary)
-
-                        Text("\(category.items.count) items")
-                            .font(Typography.caption)
-                            .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
-                    }
-
-                    Spacer()
-
-                    if category.isSystem {
-                        Text("System")
-                            .font(Typography.micro)
-                            .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(ResurfaceTheme.Colors.surfaceElevatedFallback)
-                            .clipShape(Capsule())
+                // Add new category button
+                Button {
+                    showCreateCategory = true
+                } label: {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundStyle(ResurfaceTheme.Colors.accent)
+                        Text("Create Category")
+                            .foregroundStyle(ResurfaceTheme.Colors.accent)
                     }
                 }
-                .padding(.vertical, Spacing.xxs)
+                .listRowBackground(ResurfaceTheme.Colors.surfaceFallback)
+            } header: {
+                Text("Categories")
+                    .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+            } footer: {
+                Text("Drag to reorder. The default category is used when sharing without selecting.")
+                    .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
             }
-            .onDelete(perform: deleteCategories)
-            .listRowBackground(ResurfaceTheme.Colors.surfaceFallback)
+
+            // Archived Categories
+            if !archivedCategories.isEmpty {
+                Section {
+                    DisclosureGroup(isExpanded: $showArchived) {
+                        ForEach(archivedCategories) { category in
+                            HStack(spacing: Spacing.sm) {
+                                Text(category.emoji)
+                                    .font(.system(size: 24))
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(category.name)
+                                        .font(Typography.subheadlineMedium)
+                                        .foregroundStyle(ResurfaceTheme.Colors.textSecondary)
+
+                                    Text("\(category.items.count) items")
+                                        .font(Typography.caption)
+                                        .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+                                }
+
+                                Spacer()
+
+                                Button("Restore") {
+                                    unarchive(category)
+                                }
+                                .font(Typography.caption)
+                                .foregroundStyle(ResurfaceTheme.Colors.accent)
+                            }
+                            .listRowBackground(ResurfaceTheme.Colors.surfaceFallback)
+                        }
+                    } label: {
+                        HStack {
+                            Image(systemName: "archivebox")
+                                .foregroundStyle(ResurfaceTheme.Colors.textSecondary)
+                            Text("Archived (\(archivedCategories.count))")
+                                .foregroundStyle(ResurfaceTheme.Colors.textSecondary)
+                        }
+                    }
+                }
+                .listRowBackground(ResurfaceTheme.Colors.surfaceFallback)
+            }
         }
         .scrollContentBackground(.hidden)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -189,21 +327,103 @@ struct CategoryManagementView: View {
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    // Add category action
-                } label: {
-                    Image(systemName: "plus")
-                        .foregroundStyle(ResurfaceTheme.Colors.accent)
-                }
+                EditButton()
+                    .foregroundStyle(ResurfaceTheme.Colors.accent)
             }
+        }
+        .sheet(isPresented: $showCreateCategory) {
+            CategoryCreationView()
+        }
+        .sheet(item: $categoryToEdit) { category in
+            CategoryEditView(category: category)
         }
     }
 
-    private func deleteCategories(at offsets: IndexSet) {
-        for index in offsets {
-            let category = categories[index]
-            if !category.isSystem {
-                modelContext.delete(category)
+    private func moveCategories(from source: IndexSet, to destination: Int) {
+        var categories = activeCategories
+        categories.move(fromOffsets: source, toOffset: destination)
+
+        for (index, category) in categories.enumerated() {
+            category.sortOrder = index
+        }
+
+        try? modelContext.save()
+    }
+
+    private func setAsDefault(_ category: Category) {
+        CategorySeeder.shared.setDefaultCategory(category, in: modelContext)
+    }
+
+    private func archive(_ category: Category) {
+        CategorySeeder.shared.archiveCategory(category, in: modelContext)
+    }
+
+    private func unarchive(_ category: Category) {
+        CategorySeeder.shared.unarchiveCategory(category, in: modelContext)
+    }
+}
+
+// MARK: - Category Row
+
+struct CategoryRow: View {
+    let category: Category
+    let onEdit: () -> Void
+    let onSetDefault: () -> Void
+    let onArchive: () -> Void
+
+    var body: some View {
+        HStack(spacing: Spacing.sm) {
+            // Emoji
+            Text(category.emoji)
+                .font(.system(size: 28))
+
+            // Info
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: Spacing.xs) {
+                    Text(category.name)
+                        .font(Typography.subheadlineMedium)
+                        .foregroundStyle(ResurfaceTheme.Colors.textPrimary)
+
+                    if category.isDefault {
+                        Text("Default")
+                            .font(Typography.micro)
+                            .foregroundStyle(ResurfaceTheme.Colors.accent)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(ResurfaceTheme.Colors.accentSubtle)
+                            .clipShape(Capsule())
+                    }
+                }
+
+                Text("\(category.items.count) items")
+                    .font(Typography.caption)
+                    .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+            }
+
+            Spacer()
+        }
+        .contentShape(Rectangle())
+        .contextMenu {
+            Button {
+                onEdit()
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+
+            if !category.isDefault {
+                Button {
+                    onSetDefault()
+                } label: {
+                    Label("Set as Default", systemImage: "star")
+                }
+            }
+
+            Divider()
+
+            Button(role: .destructive) {
+                onArchive()
+            } label: {
+                Label("Archive", systemImage: "archivebox")
             }
         }
     }

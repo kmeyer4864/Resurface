@@ -24,6 +24,13 @@ final class BookmarkItem {
     var keyInsights: [String] = []
     var contentSubtype: String?
 
+    // AI-generated title (clean, human-readable)
+    var aiGeneratedTitle: String?
+
+    // Dynamic extracted fields (category-specific key-value data)
+    // Stored as JSON string, parsed on access
+    var extractedFieldsJSON: String?
+
     // Status
     var processingStatusRaw: String
     var isArchived: Bool
@@ -33,6 +40,15 @@ final class BookmarkItem {
     var lastProcessingError: String?
     var processingAttempts: Int = 0
     var lastProcessedAt: Date?
+
+    // AI Processing (Phase 2)
+    var aiProcessingStatusRaw: String = "pending"
+    var aiProcessedAt: Date?
+    var aiConfidence: Double?
+
+    // Resurface Notifications
+    var resurfaceAt: Date?              // When to send notification (nil = never)
+    var resurfaceNotificationId: String? // For cancelling scheduled notification
 
     // Relationships
     @Relationship(deleteRule: .cascade)
@@ -48,6 +64,11 @@ final class BookmarkItem {
     var processingStatus: ProcessingStatus {
         get { ProcessingStatus(rawValue: processingStatusRaw) ?? .pending }
         set { processingStatusRaw = newValue.rawValue }
+    }
+
+    var aiProcessingStatus: AIProcessingStatus {
+        get { AIProcessingStatus(rawValue: aiProcessingStatusRaw) ?? .pending }
+        set { aiProcessingStatusRaw = newValue.rawValue }
     }
 
     // MARK: - Initialization
@@ -82,10 +103,64 @@ final class BookmarkItem {
 
 extension BookmarkItem {
     var displayTitle: String {
-        if title.isEmpty {
-            return sourceURL?.host ?? "Untitled"
+        // Prefer AI-generated title
+        if let aiTitle = aiGeneratedTitle, !aiTitle.isEmpty {
+            return aiTitle
         }
-        return title
+
+        // Check if original title looks like a file path or UUID
+        if !title.isEmpty && !looksLikeFilePath(title) {
+            return title
+        }
+
+        return sourceURL?.host ?? "Untitled"
+    }
+
+    /// Check if a string looks like a file path or raw filename we should replace
+    private func looksLikeFilePath(_ text: String) -> Bool {
+        // Contains path separators
+        if text.contains("/") { return true }
+
+        // Starts with a UUID-like pattern (8-4-4-4-12 hex chars)
+        let uuidPattern = #"^[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}"#
+        if let regex = try? NSRegularExpression(pattern: uuidPattern, options: .caseInsensitive) {
+            let range = NSRange(text.startIndex..., in: text)
+            if regex.firstMatch(in: text, options: [], range: range) != nil {
+                return true
+            }
+        }
+
+        // Starts with common file name patterns
+        let filePatterns = ["invoice_", "receipt_", "IMG_", "Screenshot", "document_"]
+        for pattern in filePatterns {
+            if text.hasPrefix(pattern) { return true }
+        }
+
+        return false
+    }
+
+    /// Category-specific extracted fields as a dictionary
+    var extractedFields: [String: String] {
+        get {
+            guard let json = extractedFieldsJSON,
+                  let data = json.data(using: .utf8),
+                  let dict = try? JSONDecoder().decode([String: String].self, from: data) else {
+                return [:]
+            }
+            return dict
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let json = String(data: data, encoding: .utf8) {
+                extractedFieldsJSON = json
+            }
+        }
+    }
+
+    /// Ordered list of extracted field keys for display
+    var extractedFieldKeys: [String] {
+        // Return keys in a sensible order (alphabetical for now)
+        extractedFields.keys.sorted()
     }
 
     var isPending: Bool {
@@ -94,5 +169,37 @@ extension BookmarkItem {
 
     var isProcessed: Bool {
         processingStatus == .completed
+    }
+
+    var isAIProcessed: Bool {
+        aiProcessingStatus == .completed
+    }
+
+    var needsAIProcessing: Bool {
+        aiProcessingStatus == .pending || aiProcessingStatus == .failed
+    }
+
+    /// Whether this item has a resurface notification scheduled
+    var hasResurfaceScheduled: Bool {
+        resurfaceAt != nil && resurfaceNotificationId != nil
+    }
+
+    /// Whether the resurface time is in the future
+    var isResurfacePending: Bool {
+        guard let resurfaceAt = resurfaceAt else { return false }
+        return resurfaceAt > Date()
+    }
+
+    /// Human-readable description of when this will resurface
+    var resurfaceDescription: String? {
+        guard let resurfaceAt = resurfaceAt else { return nil }
+
+        if resurfaceAt <= Date() {
+            return "Ready to resurface"
+        }
+
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: resurfaceAt, relativeTo: Date())
     }
 }

@@ -5,10 +5,12 @@ import UniformTypeIdentifiers
 actor ContentExtractorRegistry {
     static let shared = ContentExtractorRegistry()
 
+    // Order matters: more specific extractors first
     private let extractors: [any ContentExtractor] = [
-        URLExtractor(),
-        ImageExtractor(),
-        TextExtractor()
+        PDFExtractor(),    // Handle PDFs before generic URLs
+        ImageExtractor(),  // Handle images with OCR
+        URLExtractor(),    // Handle web URLs
+        TextExtractor()    // Fallback for plain text
     ]
 
     private init() {}

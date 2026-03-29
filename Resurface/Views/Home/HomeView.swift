@@ -185,9 +185,7 @@ struct HomeView: View {
     private func categorySection(_ category: Category) -> some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             SectionHeader(
-                title: category.name,
-                icon: category.icon,
-                iconColor: Color(hex: category.color),
+                title: "\(category.emoji) \(category.name)",
                 showSeeAll: category.items.count > 4
             ) {
                 // Navigate to category detail
@@ -216,10 +214,8 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             if let category = selectedCategory {
                 SectionHeader(
-                    title: category.name,
-                    subtitle: "\(filteredItems.count) items",
-                    icon: category.icon,
-                    iconColor: Color(hex: category.color)
+                    title: "\(category.emoji) \(category.name)",
+                    subtitle: "\(filteredItems.count) items"
                 )
                 .padding(.horizontal, Spacing.layout.horizontalPadding)
             }

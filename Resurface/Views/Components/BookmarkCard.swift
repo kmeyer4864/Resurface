@@ -33,7 +33,7 @@ struct BookmarkCard: View {
             // Thumbnail
             ThumbnailView(
                 contentType: item.contentType,
-                categoryColor: item.category?.color,
+                categoryColor: nil,
                 size: .large,
                 thumbnailPath: item.thumbnailPath
             )
@@ -96,11 +96,20 @@ struct BookmarkCard: View {
 
                 Spacer()
 
-                // Processing indicator
+                // Processing indicators
                 if item.isPending {
                     Image(systemName: "clock")
                         .font(.system(size: 10))
                         .foregroundStyle(ResurfaceTheme.Colors.warning)
+                } else if item.aiProcessingStatus == .processing {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 10))
+                        .foregroundStyle(ResurfaceTheme.Colors.accent)
+                        .symbolEffect(.pulse.byLayer)
+                } else if item.isAIProcessed {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 10))
+                        .foregroundStyle(ResurfaceTheme.Colors.success)
                 }
             }
 
@@ -108,6 +117,18 @@ struct BookmarkCard: View {
             if let category = item.category {
                 CategoryPill(category: category, style: .compact)
                     .padding(.top, Spacing.xxs)
+            }
+
+            // Resurface indicator
+            if item.isResurfacePending, let description = item.resurfaceDescription {
+                HStack(spacing: Spacing.xxs) {
+                    Image(systemName: "bell.fill")
+                        .font(.system(size: 10))
+                    Text(description)
+                        .font(Typography.micro)
+                }
+                .foregroundStyle(ResurfaceTheme.Colors.accent)
+                .padding(.top, Spacing.xxs)
             }
         }
         .padding(Spacing.sm)
@@ -124,7 +145,7 @@ struct BookmarkCardCompact: View {
             // Thumbnail
             ThumbnailView(
                 contentType: item.contentType,
-                categoryColor: item.category?.color,
+                categoryColor: nil,
                 size: .small,
                 thumbnailPath: item.thumbnailPath
             )
@@ -159,6 +180,10 @@ struct BookmarkCardCompact: View {
                     Image(systemName: "clock")
                         .font(.system(size: 11))
                         .foregroundStyle(ResurfaceTheme.Colors.warning)
+                } else if item.isAIProcessed {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 11))
+                        .foregroundStyle(ResurfaceTheme.Colors.success)
                 }
             }
         }

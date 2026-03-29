@@ -60,6 +60,38 @@ final class BackgroundProcessor {
         isProcessing = false
     }
 
+    /// Retry AI processing for items that need it
+    /// - Parameter context: The model context to use
+    func retryAIProcessing(in context: ModelContext) async {
+        guard NetworkMonitor.shared.isConnected else { return }
+
+        let descriptor = FetchDescriptor<BookmarkItem>(
+            predicate: #Predicate<BookmarkItem> { item in
+                item.processingStatusRaw == "completed" &&
+                (item.aiProcessingStatusRaw == "pending" || item.aiProcessingStatusRaw == "failed")
+            },
+            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
+        )
+
+        guard let items = try? context.fetch(descriptor) else { return }
+
+        for item in items {
+            if Task.isCancelled { break }
+            guard NetworkMonitor.shared.isConnected else { break }
+
+            await processAIAnalysis(for: item, in: context)
+        }
+    }
+
+    /// Retry AI processing for a single item
+    /// - Parameters:
+    ///   - item: The item to retry
+    ///   - context: The model context to use
+    func retryAIProcessing(for item: BookmarkItem, in context: ModelContext) async {
+        guard item.needsAIProcessing else { return }
+        await processAIAnalysis(for: item, in: context)
+    }
+
     // MARK: - Private Processing Logic
 
     /// Perform the actual processing
@@ -126,12 +158,51 @@ final class BackgroundProcessor {
             }
         }
 
-        // Mark as completed
+        // Mark metadata processing as completed
         item.processingStatus = .completed
         item.lastProcessedAt = Date()
         item.lastProcessingError = nil
 
-        // Save changes
+        // Save changes before AI processing
+        item.markUpdated()
+        try? context.save()
+
+        // Trigger AI processing (non-blocking for the base processing)
+        await processAIAnalysis(for: item, in: context)
+    }
+
+    /// Process AI analysis for an item
+    private func processAIAnalysis(for item: BookmarkItem, in context: ModelContext) async {
+        // Skip if already processed or skipped
+        guard item.aiProcessingStatus == .pending || item.aiProcessingStatus == .failed else {
+            return
+        }
+
+        item.aiProcessingStatus = .processing
+        try? context.save()
+
+        do {
+            let response = try await AIContentProcessor.shared.analyzeItem(item)
+            AIContentProcessor.shared.applyAnalysis(response, to: item, in: context)
+
+            item.aiProcessingStatus = .completed
+            item.aiProcessedAt = Date()
+            item.aiConfidence = response.confidence
+        } catch let error as AIAnalysisError {
+            switch error {
+            case .invalidResponse:
+                // Not enough content to analyze
+                item.aiProcessingStatus = .skipped
+            case .networkUnavailable:
+                // Will retry later when network is back
+                item.aiProcessingStatus = .pending
+            default:
+                item.aiProcessingStatus = .failed
+            }
+        } catch {
+            item.aiProcessingStatus = .failed
+        }
+
         item.markUpdated()
         try? context.save()
     }

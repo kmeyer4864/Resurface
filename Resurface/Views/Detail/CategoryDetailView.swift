@@ -65,15 +65,10 @@ struct CategoryDetailView: View {
 
     private var categoryHeader: some View {
         HStack(spacing: Spacing.sm) {
-            ZStack {
-                Circle()
-                    .fill(Color(hex: category.color)?.opacity(0.2) ?? ResurfaceTheme.Colors.accentSubtle)
-                    .frame(width: 44, height: 44)
-
-                Image(systemName: category.icon)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Color(hex: category.color) ?? ResurfaceTheme.Colors.accent)
-            }
+            // Emoji display
+            Text(category.emoji)
+                .font(.system(size: 32))
+                .frame(width: 44, height: 44)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(category.name)
@@ -86,6 +81,16 @@ struct CategoryDetailView: View {
             }
 
             Spacer()
+
+            if category.isDefault {
+                Text("Default")
+                    .font(Typography.micro)
+                    .foregroundStyle(ResurfaceTheme.Colors.accent)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(ResurfaceTheme.Colors.accentSubtle)
+                    .clipShape(Capsule())
+            }
         }
         .padding(Spacing.md)
         .background(ResurfaceTheme.Colors.surfaceFallback)
@@ -134,7 +139,7 @@ struct CategoryDetailView: View {
 
     private var emptyState: some View {
         EmptyStateView(
-            icon: category.icon,
+            icon: "folder",
             title: "No Items",
             description: "Items in \(category.name) will appear here."
         )
@@ -144,7 +149,7 @@ struct CategoryDetailView: View {
 
 #Preview {
     NavigationStack {
-        CategoryDetailView(category: Category(name: "Tech", icon: "cpu.fill", color: "#5856D6"))
+        CategoryDetailView(category: Category(name: "Tech", emoji: "💻", description: "Technology content"))
     }
     .modelContainer(for: [BookmarkItem.self, Category.self, Tag.self], inMemory: true)
     .preferredColorScheme(.dark)

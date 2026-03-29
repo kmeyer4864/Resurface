@@ -10,7 +10,7 @@ struct BookmarkRowView: View {
             // Thumbnail
             ThumbnailView(
                 contentType: item.contentType,
-                categoryColor: item.category?.color,
+                categoryColor: nil,
                 size: .small
             )
 

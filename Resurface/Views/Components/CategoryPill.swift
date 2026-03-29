@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Category filter pill with icon, label, and selection state
+/// Category filter pill with emoji, label, and selection state
 struct CategoryPill: View {
     let category: Category
     var isSelected: Bool = false
@@ -8,20 +8,19 @@ struct CategoryPill: View {
     var style: PillStyle = .default
 
     enum PillStyle {
-        case `default`  // Full size with icon + label
-        case compact    // Small, just icon + name
-        case iconOnly   // Just the icon
+        case `default`  // Full size with emoji + label
+        case compact    // Small, just emoji + name
+        case emojiOnly  // Just the emoji
     }
 
     var body: some View {
         HStack(spacing: Spacing.xxs) {
-            // Icon
-            Image(systemName: category.icon)
-                .font(.system(size: iconSize, weight: .medium))
-                .foregroundStyle(iconColor)
+            // Emoji
+            Text(category.emoji)
+                .font(.system(size: emojiSize))
 
-            // Label (not shown in iconOnly)
-            if style != .iconOnly {
+            // Label (not shown in emojiOnly)
+            if style != .emojiOnly {
                 Text(category.name)
                     .font(labelFont)
                     .foregroundStyle(labelColor)
@@ -50,15 +49,11 @@ struct CategoryPill: View {
 
     // MARK: - Computed Properties
 
-    private var categoryColor: Color {
-        Color(hex: category.color) ?? ResurfaceTheme.Colors.accent
-    }
-
-    private var iconSize: CGFloat {
+    private var emojiSize: CGFloat {
         switch style {
-        case .default: return 12
-        case .compact: return 10
-        case .iconOnly: return 14
+        case .default: return 14
+        case .compact: return 12
+        case .emojiOnly: return 16
         }
     }
 
@@ -66,7 +61,7 @@ struct CategoryPill: View {
         switch style {
         case .default: return Typography.captionMedium
         case .compact: return Typography.micro
-        case .iconOnly: return Typography.micro
+        case .emojiOnly: return Typography.micro
         }
     }
 
@@ -74,7 +69,7 @@ struct CategoryPill: View {
         switch style {
         case .default: return Spacing.sm
         case .compact: return Spacing.xs
-        case .iconOnly: return Spacing.xs
+        case .emojiOnly: return Spacing.xs
         }
     }
 
@@ -82,29 +77,22 @@ struct CategoryPill: View {
         switch style {
         case .default: return Spacing.xs
         case .compact: return Spacing.xxs
-        case .iconOnly: return Spacing.xs
+        case .emojiOnly: return Spacing.xs
         }
     }
 
     private var backgroundColor: Color {
         if isSelected {
-            return categoryColor.opacity(0.2)
+            return ResurfaceTheme.Colors.accent.opacity(0.2)
         }
         return ResurfaceTheme.Colors.surfaceElevatedFallback
     }
 
     private var borderColor: Color {
         if isSelected {
-            return categoryColor
+            return ResurfaceTheme.Colors.accent
         }
         return ResurfaceTheme.Colors.border
-    }
-
-    private var iconColor: Color {
-        if isSelected {
-            return categoryColor
-        }
-        return ResurfaceTheme.Colors.textSecondary
     }
 
     private var labelColor: Color {
@@ -202,10 +190,10 @@ struct CategoryScrollBar: View {
 
 #Preview {
     let sampleCategories: [Category] = [
-        Category(name: "Tech", icon: "cpu.fill", color: "#5856D6", isSystem: true),
-        Category(name: "Finance", icon: "dollarsign.circle.fill", color: "#34C759", isSystem: true),
-        Category(name: "Health", icon: "heart.fill", color: "#FF2D55", isSystem: true),
-        Category(name: "Learning", icon: "book.fill", color: "#007AFF", isSystem: true)
+        Category(name: "Tech", emoji: "💻", description: "Technology content"),
+        Category(name: "Finance", emoji: "💰", description: "Financial content"),
+        Category(name: "Health", emoji: "❤️", description: "Health content"),
+        Category(name: "Learning", emoji: "📚", description: "Educational content")
     ]
 
     ScrollView {

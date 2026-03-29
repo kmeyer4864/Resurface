@@ -4,6 +4,7 @@ import SwiftData
 struct BookmarkDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var item: BookmarkItem
+    @State private var isRetryingAI = false
 
     var body: some View {
         ScrollView {
@@ -16,6 +17,16 @@ struct BookmarkDetailView: View {
                     headerSection
                     metadataSection
 
+                    // Dynamic extracted fields (category-specific)
+                    if !item.extractedFields.isEmpty {
+                        extractedFieldsSection
+                    }
+
+                    // AI status for pending/failed items
+                    if item.needsAIProcessing {
+                        aiStatusSection
+                    }
+
                     if !item.keyInsights.isEmpty {
                         insightsSection
                     }
@@ -23,6 +34,9 @@ struct BookmarkDetailView: View {
                     if !item.tags.isEmpty {
                         tagsSection
                     }
+
+                    // Resurface section
+                    resurfaceSection
 
                     if let rawText = item.rawText, !rawText.isEmpty {
                         contentSection(rawText)
@@ -94,8 +108,9 @@ struct BookmarkDetailView: View {
             // Large thumbnail
             ThumbnailView(
                 contentType: item.contentType,
-                categoryColor: item.category?.color,
-                size: .large
+                categoryColor: nil,
+                size: .large,
+                thumbnailPath: item.thumbnailPath
             )
             .frame(height: 200)
 
@@ -181,11 +196,31 @@ struct BookmarkDetailView: View {
                         .frame(height: 24)
                         .background(ResurfaceTheme.Colors.border)
 
+                    VStack(spacing: Spacing.xxs) {
+                        Text(category.emoji)
+                            .font(.system(size: 20))
+
+                        Text(category.name)
+                            .font(Typography.captionMedium)
+                            .foregroundStyle(ResurfaceTheme.Colors.textPrimary)
+
+                        Text("Category")
+                            .font(Typography.micro)
+                            .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+
+                if item.isAIProcessed, let confidence = item.aiConfidence {
+                    Divider()
+                        .frame(height: 24)
+                        .background(ResurfaceTheme.Colors.border)
+
                     metadataItem(
-                        icon: category.icon,
-                        label: "Category",
-                        value: category.name,
-                        color: Color(hex: category.color)
+                        icon: "sparkles",
+                        label: "AI",
+                        value: "\(Int(confidence * 100))%",
+                        color: confidenceColor(confidence)
                     )
                 }
             }
@@ -197,6 +232,17 @@ struct BookmarkDetailView: View {
             RoundedRectangle(cornerRadius: Spacing.cornerRadius.large)
                 .stroke(ResurfaceTheme.Colors.border, lineWidth: 0.5)
         )
+    }
+
+    private func confidenceColor(_ confidence: Double) -> Color {
+        switch confidence {
+        case 0.8...1.0:
+            return .green
+        case 0.6..<0.8:
+            return .yellow
+        default:
+            return .orange
+        }
     }
 
     private func metadataItem(icon: String, label: String, value: String, color: Color? = nil) -> some View {
@@ -214,6 +260,131 @@ struct BookmarkDetailView: View {
                 .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Extracted Fields Section (Dynamic, Category-Specific)
+
+    private var extractedFieldsSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            // Use category name as section title, or default to "Details"
+            SectionHeader(
+                title: item.category.map { "\($0.emoji) \($0.name) Details" } ?? "Details",
+                icon: "doc.text.magnifyingglass",
+                iconColor: ResurfaceTheme.Colors.accent
+            )
+
+            VStack(spacing: 0) {
+                ForEach(Array(item.extractedFields.keys.sorted().enumerated()), id: \.element) { index, key in
+                    extractedFieldRow(key: key, value: item.extractedFields[key] ?? "")
+
+                    if index < item.extractedFields.count - 1 {
+                        Divider()
+                            .background(ResurfaceTheme.Colors.border)
+                    }
+                }
+            }
+            .background(ResurfaceTheme.Colors.surfaceFallback)
+            .clipShape(RoundedRectangle(cornerRadius: Spacing.cornerRadius.large))
+            .overlay(
+                RoundedRectangle(cornerRadius: Spacing.cornerRadius.large)
+                    .stroke(ResurfaceTheme.Colors.border, lineWidth: 0.5)
+            )
+        }
+    }
+
+    private func extractedFieldRow(key: String, value: String) -> some View {
+        HStack(alignment: .top) {
+            Text(key)
+                .font(Typography.caption)
+                .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+                .frame(width: 100, alignment: .leading)
+
+            Text(value)
+                .font(Typography.subheadlineMedium)
+                .foregroundStyle(ResurfaceTheme.Colors.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Copy button for values
+            Button {
+                UIPasteboard.general.string = value
+            } label: {
+                Image(systemName: "doc.on.doc")
+                    .font(.system(size: 12))
+                    .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(Spacing.md)
+    }
+
+    // MARK: - AI Status Section
+
+    private var aiStatusSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            SectionHeader(
+                title: "AI Analysis",
+                icon: item.aiProcessingStatus.iconName,
+                iconColor: item.aiProcessingStatus == .failed ? .red : .orange
+            )
+
+            HStack {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text(item.aiProcessingStatus.displayName)
+                        .font(Typography.subheadlineMedium)
+                        .foregroundStyle(ResurfaceTheme.Colors.textPrimary)
+
+                    Text(aiStatusDescription)
+                        .font(Typography.caption)
+                        .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+                }
+
+                Spacer()
+
+                Button {
+                    retryAIProcessing()
+                } label: {
+                    if isRetryingAI {
+                        ProgressView()
+                            .tint(ResurfaceTheme.Colors.accent)
+                    } else {
+                        Label("Retry", systemImage: "arrow.clockwise")
+                            .font(Typography.captionMedium)
+                            .foregroundStyle(ResurfaceTheme.Colors.accent)
+                    }
+                }
+                .disabled(isRetryingAI)
+            }
+            .padding(Spacing.md)
+            .background(ResurfaceTheme.Colors.surfaceFallback)
+            .clipShape(RoundedRectangle(cornerRadius: Spacing.cornerRadius.large))
+            .overlay(
+                RoundedRectangle(cornerRadius: Spacing.cornerRadius.large)
+                    .stroke(ResurfaceTheme.Colors.border, lineWidth: 0.5)
+            )
+        }
+    }
+
+    private var aiStatusDescription: String {
+        switch item.aiProcessingStatus {
+        case .pending:
+            return "AI analysis will run when online"
+        case .processing:
+            return "Analyzing content..."
+        case .failed:
+            return "Analysis failed. Tap to retry."
+        case .skipped:
+            return "Not enough content to analyze"
+        case .completed:
+            return "Analysis complete"
+        }
+    }
+
+    private func retryAIProcessing() {
+        isRetryingAI = true
+        Task {
+            await BackgroundProcessor.shared.retryAIProcessing(for: item, in: modelContext)
+            isRetryingAI = false
+        }
     }
 
     // MARK: - Insights Section
@@ -248,6 +419,118 @@ struct BookmarkDetailView: View {
                     .stroke(ResurfaceTheme.Colors.border, lineWidth: 0.5)
             )
         }
+    }
+
+    // MARK: - Resurface Section
+
+    private var resurfaceSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            SectionHeader(
+                title: "Resurface Reminder",
+                icon: "bell.fill",
+                iconColor: ResurfaceTheme.Colors.accent
+            )
+
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                if let resurfaceAt = item.resurfaceAt {
+                    HStack {
+                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                            if resurfaceAt > Date() {
+                                Text("Scheduled for")
+                                    .font(Typography.caption)
+                                    .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+                                Text(resurfaceAt, style: .date)
+                                    .font(Typography.subheadlineMedium)
+                                    .foregroundStyle(ResurfaceTheme.Colors.textPrimary)
+                            } else {
+                                Text("Ready to resurface!")
+                                    .font(Typography.subheadlineMedium)
+                                    .foregroundStyle(ResurfaceTheme.Colors.accent)
+                            }
+                        }
+
+                        Spacer()
+
+                        Button {
+                            clearResurface()
+                        } label: {
+                            Text("Clear")
+                                .font(Typography.caption)
+                                .foregroundStyle(ResurfaceTheme.Colors.error)
+                        }
+                    }
+                } else {
+                    // Picker to set resurface time
+                    Text("Set a reminder to revisit this content")
+                        .font(Typography.caption)
+                        .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: Spacing.xs) {
+                            ForEach(ResurfaceOption.allCases.filter { $0 != .never }) { option in
+                                Button {
+                                    setResurface(option)
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: option.iconName)
+                                            .font(.system(size: 12))
+                                        Text(option.shortName)
+                                            .font(Typography.caption)
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(ResurfaceTheme.Colors.surfaceElevatedFallback)
+                                    .foregroundStyle(ResurfaceTheme.Colors.textSecondary)
+                                    .clipShape(Capsule())
+                                    .overlay(
+                                        Capsule()
+                                            .stroke(ResurfaceTheme.Colors.border, lineWidth: 0.5)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(Spacing.md)
+            .background(ResurfaceTheme.Colors.surfaceFallback)
+            .clipShape(RoundedRectangle(cornerRadius: Spacing.cornerRadius.large))
+            .overlay(
+                RoundedRectangle(cornerRadius: Spacing.cornerRadius.large)
+                    .stroke(ResurfaceTheme.Colors.border, lineWidth: 0.5)
+            )
+        }
+    }
+
+    private func setResurface(_ option: ResurfaceOption) {
+        guard let targetDate = option.targetDate() else { return }
+
+        item.resurfaceAt = targetDate
+
+        Task {
+            let notificationId = await ResurfaceNotificationService.shared.scheduleNotification(
+                for: item.id,
+                title: item.displayTitle,
+                at: targetDate
+            )
+            await MainActor.run {
+                item.resurfaceNotificationId = notificationId
+                try? modelContext.save()
+            }
+        }
+    }
+
+    private func clearResurface() {
+        if let notificationId = item.resurfaceNotificationId {
+            Task {
+                await ResurfaceNotificationService.shared.cancelNotification(identifier: notificationId)
+            }
+        }
+
+        item.resurfaceAt = nil
+        item.resurfaceNotificationId = nil
+        try? modelContext.save()
     }
 
     // MARK: - Tags Section
@@ -345,7 +628,7 @@ struct FlowLayout: Layout {
 
 // MARK: - Preview
 
-#Preview {
+#Preview("Article") {
     let sampleItem = {
         let item = BookmarkItem(
             contentType: .article,
@@ -357,6 +640,34 @@ struct FlowLayout: Layout {
             "SwiftUI provides declarative syntax for building user interfaces",
             "Combine can be used for reactive programming patterns",
             "Use @Observable for modern state management"
+        ]
+        return item
+    }()
+
+    NavigationStack {
+        BookmarkDetailView(item: sampleItem)
+    }
+    .modelContainer(for: [BookmarkItem.self, Category.self, Tag.self], inMemory: true)
+    .preferredColorScheme(.dark)
+}
+
+#Preview("HSA Receipt with Extracted Fields") {
+    let sampleItem = {
+        let item = BookmarkItem(
+            contentType: .pdf,
+            title: "Headway Therapy Invoice"
+        )
+        item.aiGeneratedTitle = "Headway Therapy - $100"
+        item.keyInsights = [
+            "Therapy session on February 6, 2026",
+            "Payment completed via insurance"
+        ]
+        item.extractedFields = [
+            "Provider": "Headway - Khurshed Davronov",
+            "Amount": "$100.00",
+            "Date of Service": "February 6, 2026",
+            "Payment Status": "Paid",
+            "Service Type": "Therapy Session"
         ]
         return item
     }()

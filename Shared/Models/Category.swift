@@ -5,9 +5,12 @@ import SwiftData
 final class Category {
     @Attribute(.unique) var id: UUID
     var name: String
-    var icon: String              // SF Symbol
-    var color: String             // Hex color
-    var isSystem: Bool
+    var emoji: String             // Actual emoji character (e.g., "🧾")
+    var categoryDescription: String  // What this category is used for
+    var aiPrompt: String          // Custom AI instructions for this category
+    var isDefault: Bool           // Only one category can be default
+    var isArchived: Bool          // Hidden but data preserved
+    var sortOrder: Int            // For manual ordering
     var createdAt: Date
 
     @Relationship(deleteRule: .nullify, inverse: \BookmarkItem.category)
@@ -16,32 +19,51 @@ final class Category {
     init(
         id: UUID = UUID(),
         name: String,
-        icon: String = "folder",
-        color: String = "#007AFF",
-        isSystem: Bool = false
+        emoji: String = "📁",
+        description: String = "",
+        aiPrompt: String = "",
+        isDefault: Bool = false,
+        isArchived: Bool = false,
+        sortOrder: Int = 0
     ) {
         self.id = id
         self.name = name
-        self.icon = icon
-        self.color = color
-        self.isSystem = isSystem
+        self.emoji = emoji
+        self.categoryDescription = description
+        self.aiPrompt = aiPrompt
+        self.isDefault = isDefault
+        self.isArchived = isArchived
+        self.sortOrder = sortOrder
         self.createdAt = Date()
     }
 }
 
-// MARK: - System Categories
+// MARK: - Computed Properties
 
 extension Category {
-    static let systemCategories: [(name: String, icon: String, color: String)] = [
-        ("Health", "heart.fill", "#FF2D55"),
-        ("Finance", "dollarsign.circle.fill", "#34C759"),
-        ("Tech", "cpu.fill", "#5856D6"),
-        ("Career", "briefcase.fill", "#FF9500"),
-        ("Learning", "book.fill", "#007AFF"),
-        ("Entertainment", "tv.fill", "#AF52DE"),
-        ("Shopping", "cart.fill", "#FF3B30"),
-        ("Travel", "airplane", "#00C7BE"),
-        ("Food", "fork.knife", "#FFCC00"),
-        ("News", "newspaper.fill", "#8E8E93")
-    ]
+    /// Number of non-archived items in this category
+    var activeItemCount: Int {
+        items.filter { !$0.isArchived }.count
+    }
+
+    /// Display string combining emoji and name
+    var displayName: String {
+        "\(emoji) \(name)"
+    }
+}
+
+// MARK: - Default Category
+
+extension Category {
+    /// Creates the default "Universal Folder" category for new users
+    static func createUniversalFolder() -> Category {
+        Category(
+            name: "Universal Folder",
+            emoji: "📁",
+            description: "A catch-all for anything you want to save and revisit later.",
+            aiPrompt: "Analyze this content and extract the most important information. Identify key topics, actionable items, and any details worth remembering.",
+            isDefault: true,
+            sortOrder: 0
+        )
+    }
 }
