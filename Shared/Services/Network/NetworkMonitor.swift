@@ -52,6 +52,7 @@ final class NetworkMonitor {
     /// Update status based on NWPath
     @MainActor
     private func updateStatus(with path: NWPath) {
+        let wasConnected = isConnected
         isConnected = path.status == .satisfied
         isExpensive = path.isExpensive
         isConstrained = path.isConstrained
@@ -64,6 +65,11 @@ final class NetworkMonitor {
             connectionType = .wiredEthernet
         } else {
             connectionType = .unknown
+        }
+
+        // Post notification when connectivity changes (especially when coming back online)
+        if wasConnected != isConnected {
+            postConnectivityNotification()
         }
     }
 

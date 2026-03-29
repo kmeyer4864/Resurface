@@ -19,23 +19,17 @@ struct ContentView: View {
                 }
                 .tag(0)
 
-            LibraryView()
-                .tabItem {
-                    Label("Library", systemImage: "books.vertical.fill")
-                }
-                .tag(1)
-
             SearchView()
                 .tabItem {
                     Label("Search", systemImage: "magnifyingglass")
                 }
-                .tag(2)
+                .tag(1)
 
             SettingsView()
                 .tabItem {
                     Label("Settings", systemImage: "gearshape.fill")
                 }
-                .tag(3)
+                .tag(2)
         }
         .tint(ResurfaceTheme.Colors.accent)
         .preferredColorScheme(.dark)

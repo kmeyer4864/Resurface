@@ -67,6 +67,9 @@ struct ResurfaceApp: App {
     /// Observer for Share Extension notifications
     @State private var shareNotificationObserver: NSObjectProtocol?
 
+    /// Observer for network connectivity changes
+    @State private var networkObserver: NSObjectProtocol?
+
     /// Deep link navigation state
     @State private var showCreateCategory = false
     @State private var deepLinkItemId: UUID?
@@ -107,6 +110,22 @@ struct ResurfaceApp: App {
         shareNotificationObserver = ShareNotification.observeNewContent { [self] in
             Task { @MainActor in
                 await processPendingItems()
+            }
+        }
+
+        // Observe network connectivity changes - retry AI processing when coming back online
+        networkObserver = NotificationCenter.default.addObserver(
+            forName: NetworkMonitor.connectivityChangedNotification,
+            object: nil,
+            queue: .main
+        ) { [self] notification in
+            guard let isConnected = notification.userInfo?["isConnected"] as? Bool,
+                  isConnected else { return }
+
+            // Network came back - retry AI processing
+            Task { @MainActor in
+                let context = sharedModelContainer.mainContext
+                await BackgroundProcessor.shared.retryAIProcessing(in: context)
             }
         }
 
