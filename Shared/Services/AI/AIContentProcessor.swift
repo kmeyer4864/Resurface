@@ -27,16 +27,20 @@ actor AIContentProcessor {
 
     /// Apply AI response to a bookmark item
     /// Must be called on MainActor with a valid ModelContext
-    /// Note: Category is NOT updated here - users select their own categories at share time
     @MainActor
     func applyAnalysis(
         _ response: AIAnalysisResponse,
         to item: BookmarkItem,
         in context: ModelContext
     ) {
-        // NOTE: We no longer auto-assign categories from AI response
-        // Users select their category when sharing content
-        // The AI analyzes through the lens of that category instead
+        // Auto-categorization: if the user didn't manually pick a category,
+        // try to match the AI suggestion to an existing category
+        if item.wasAutoCategorized || item.category == nil {
+            if let matched = findMatchingCategory(for: response.category, in: context) {
+                item.category = matched
+                item.wasAutoCategorized = true
+            }
+        }
 
         // Find or create tags
         for tagName in response.tags {
@@ -71,6 +75,30 @@ actor AIContentProcessor {
         if let extractedFields = response.extractedFields, !extractedFields.isEmpty {
             item.extractedFields = extractedFields
         }
+    }
+
+    /// Find an existing category matching the AI suggestion (does NOT auto-create)
+    @MainActor
+    private func findMatchingCategory(for suggestedName: String, in context: ModelContext) -> Category? {
+        let descriptor = FetchDescriptor<Category>(
+            predicate: #Predicate<Category> { !$0.isArchived }
+        )
+        guard let categories = try? context.fetch(descriptor) else { return nil }
+
+        let lowered = suggestedName.lowercased()
+
+        // Exact name match
+        if let exact = categories.first(where: { $0.name.lowercased() == lowered }) {
+            return exact
+        }
+
+        // Template keyword match — map AI suggestion to a known template, then find that category
+        if let template = CategoryTemplates.bestMatch(for: lowered),
+           let match = categories.first(where: { $0.name.lowercased() == template.name.lowercased() }) {
+            return match
+        }
+
+        return nil
     }
 
     /// Check if item has enough content to analyze

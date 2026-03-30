@@ -53,6 +53,10 @@ struct BookmarkDetailView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ResurfaceTheme.Colors.backgroundFallback.ignoresSafeArea())
+        .onAppear {
+            item.lastViewedAt = Date()
+            item.markUpdated()
+        }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(ResurfaceTheme.Colors.backgroundFallback, for: .navigationBar)

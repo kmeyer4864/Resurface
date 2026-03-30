@@ -2,6 +2,7 @@ import Foundation
 
 /// Options for when to resurface (notify about) saved content
 enum ResurfaceOption: String, Codable, CaseIterable, Identifiable {
+    case smart
     case never
     case laterToday
     case tomorrow
@@ -13,6 +14,7 @@ enum ResurfaceOption: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
+        case .smart: return "Smart"
         case .never: return "Never"
         case .laterToday: return "Later Today"
         case .tomorrow: return "Tomorrow"
@@ -24,6 +26,7 @@ enum ResurfaceOption: String, Codable, CaseIterable, Identifiable {
 
     var shortName: String {
         switch self {
+        case .smart: return "Smart"
         case .never: return "Never"
         case .laterToday: return "Today"
         case .tomorrow: return "Tomorrow"
@@ -35,6 +38,7 @@ enum ResurfaceOption: String, Codable, CaseIterable, Identifiable {
 
     var iconName: String {
         switch self {
+        case .smart: return "sparkles"
         case .never: return "bell.slash"
         case .laterToday: return "clock"
         case .tomorrow: return "sunrise"
@@ -50,6 +54,10 @@ enum ResurfaceOption: String, Codable, CaseIterable, Identifiable {
         let calendar = Calendar.current
 
         switch self {
+        case .smart:
+            // Smart timing is determined post-AI-analysis, not at save time
+            return nil
+
         case .never:
             return nil
 

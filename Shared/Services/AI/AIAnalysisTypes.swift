@@ -14,6 +14,9 @@ struct AIAnalysisRequest: Codable {
     let categoryDescription: String?
     let categoryPrompt: String?
 
+    // Whether the AI should suggest a category (no manual selection was made)
+    let needsCategorySuggestion: Bool
+
     init(from item: BookmarkItem) {
         self.contentType = item.contentType.rawValue
         self.title = item.title
@@ -26,6 +29,8 @@ struct AIAnalysisRequest: Codable {
         self.categoryName = item.category?.name
         self.categoryDescription = item.category?.categoryDescription
         self.categoryPrompt = item.category?.aiPrompt
+
+        self.needsCategorySuggestion = item.wasAutoCategorized || item.category == nil
     }
 }
 
@@ -40,6 +45,9 @@ struct AIAnalysisResponse: Codable {
     // New fields for enhanced content understanding
     let suggestedTitle: String?           // Clean, human-readable title
     let extractedFields: [String: String]? // Category-specific key-value data
+
+    // Smart resurface timing (optional — backend may not return this yet)
+    let suggestedResurfaceDays: Int?      // How many days until this should resurface
 }
 
 /// Error response from the backend

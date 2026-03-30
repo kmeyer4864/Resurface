@@ -112,7 +112,9 @@ struct ShareExtensionView: View {
     @State private var extractedContent: ExtractedContent?
     @State private var categories: [Category] = []
     @State private var selectedCategory: Category?
-    @State private var selectedResurfaceOption: ResurfaceOption = .never
+    @State private var selectedResurfaceOption: ResurfaceOption = .smart
+    @State private var useAutoCategory: Bool = true
+    @State private var showManualTiming: Bool = false
     @State private var errorMessage: String?
 
     enum SharePhase {
@@ -244,11 +246,36 @@ struct ShareExtensionView: View {
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
+                        // Auto chip (selected by default)
+                        Button {
+                            useAutoCategory = true
+                            selectedCategory = nil
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 14))
+                                Text("Auto")
+                            }
+                            .font(.subheadline)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(useAutoCategory ? Color.purple.opacity(0.2) : Color(uiColor: .secondarySystemBackground))
+                            .foregroundStyle(useAutoCategory ? Color.purple : .primary)
+                            .clipShape(Capsule())
+                            .overlay(
+                                Capsule().stroke(useAutoCategory ? Color.purple : .clear, lineWidth: 2)
+                            )
+                        }
+                        .buttonStyle(.plain)
+
                         ForEach(categories) { category in
                             CategoryChip(
                                 category: category,
-                                isSelected: selectedCategory?.id == category.id,
-                                onTap: { selectedCategory = category }
+                                isSelected: !useAutoCategory && selectedCategory?.id == category.id,
+                                onTap: {
+                                    useAutoCategory = false
+                                    selectedCategory = category
+                                }
                             )
                         }
 
@@ -277,26 +304,52 @@ struct ShareExtensionView: View {
 
             // Resurface picker
             VStack(alignment: .leading, spacing: 12) {
-                Text("Resurface this?")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal)
-                    .padding(.top)
+                HStack {
+                    Text("Resurface")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.secondary)
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(ResurfaceOption.allCases) { option in
-                            ResurfaceChip(
-                                option: option,
-                                isSelected: selectedResurfaceOption == option,
-                                onTap: { selectedResurfaceOption = option }
-                            )
+                    Spacer()
+
+                    if !showManualTiming {
+                        Button {
+                            showManualTiming = true
+                        } label: {
+                            Text("Choose manually")
+                                .font(.caption)
+                                .foregroundStyle(Color.purple.opacity(0.7))
                         }
                     }
+                }
+                .padding(.horizontal)
+                .padding(.top)
+
+                if showManualTiming {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(ResurfaceOption.allCases) { option in
+                                ResurfaceChip(
+                                    option: option,
+                                    isSelected: selectedResurfaceOption == option,
+                                    onTap: { selectedResurfaceOption = option }
+                                )
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                } else {
+                    HStack(spacing: 6) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 12))
+                        Text("AI will decide the best time")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(Color.purple)
                     .padding(.horizontal)
                 }
-                .padding(.bottom)
+
+                Spacer().frame(height: 4)
             }
         }
     }
@@ -428,9 +481,12 @@ struct ShareExtensionView: View {
                 )
                 item.rawText = content.text
 
-                // Set category
-                if let selectedCategory = selectedCategory {
-                    // Fetch the category in this context
+                // Set category (manual pick or auto)
+                if useAutoCategory {
+                    // AI will assign category during background processing
+                    item.wasAutoCategorized = true
+                } else if let selectedCategory = selectedCategory {
+                    // User manually selected a category
                     let categoryId = selectedCategory.id
                     let descriptor = FetchDescriptor<Category>(
                         predicate: #Predicate<Category> { $0.id == categoryId }
@@ -440,8 +496,9 @@ struct ShareExtensionView: View {
                     }
                 }
 
-                // Set resurface time
-                if let resurfaceDate = selectedResurfaceOption.targetDate() {
+                // Set resurface time (smart timing lets BackgroundProcessor decide)
+                if selectedResurfaceOption != .smart,
+                   let resurfaceDate = selectedResurfaceOption.targetDate() {
                     item.resurfaceAt = resurfaceDate
                 }
 
