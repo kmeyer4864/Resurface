@@ -185,6 +185,24 @@ final class BackgroundProcessor {
             let response = try await AIContentProcessor.shared.analyzeItem(item)
             AIContentProcessor.shared.applyAnalysis(response, to: item, in: context)
 
+            // Auto-set resurface date if not already set by user
+            if item.resurfaceAt == nil {
+                item.resurfaceAt = SmartResurfaceScheduler.suggestedDate(
+                    for: item.contentType,
+                    contentSubtype: response.contentSubtype,
+                    category: item.category,
+                    aiSuggestedDays: response.suggestedResurfaceDays
+                )
+                if let date = item.resurfaceAt {
+                    let notifId = await ResurfaceNotificationService.shared.scheduleNotification(
+                        for: item.id,
+                        title: item.displayTitle,
+                        at: date
+                    )
+                    item.resurfaceNotificationId = notifId
+                }
+            }
+
             item.aiProcessingStatus = .completed
             item.aiProcessedAt = Date()
             item.aiConfidence = response.confidence

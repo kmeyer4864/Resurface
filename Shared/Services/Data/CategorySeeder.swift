@@ -117,6 +117,47 @@ actor CategorySeeder {
         try? context.save()
     }
 
+    /// Create a category from a template
+    @MainActor
+    func createTemplateCategory(
+        _ template: CategoryTemplates.Template,
+        sortOrder: Int,
+        in context: ModelContext
+    ) -> Category {
+        let category = Category(
+            name: template.name,
+            emoji: template.emoji,
+            description: template.description,
+            aiPrompt: template.aiPrompt,
+            sortOrder: sortOrder
+        )
+        context.insert(category)
+        try? context.save()
+        return category
+    }
+
+    /// Check if a category with the given name already exists (case-insensitive)
+    @MainActor
+    func categoryExists(named name: String, in context: ModelContext) -> Bool {
+        let descriptor = FetchDescriptor<Category>()
+        guard let categories = try? context.fetch(descriptor) else { return false }
+        let lowered = name.lowercased()
+        return categories.contains { $0.name.lowercased() == lowered }
+    }
+
+    /// Whether the app should suggest categories (Universal Folder has ≥10 items)
+    @MainActor
+    func shouldSuggestCategories(in context: ModelContext) -> Bool {
+        let descriptor = FetchDescriptor<Category>(
+            predicate: #Predicate<Category> { $0.isDefault == true }
+        )
+        guard let defaults = try? context.fetch(descriptor),
+              let universal = defaults.first else {
+            return false
+        }
+        return universal.activeItemCount >= 10
+    }
+
     /// Delete a category and optionally move items to another category
     @MainActor
     func deleteCategory(_ category: Category, movingItemsTo target: Category?, in context: ModelContext) {

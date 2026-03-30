@@ -13,23 +13,29 @@ struct ContentView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            HomeView()
+            FeedView()
                 .tabItem {
-                    Label("Home", systemImage: "house.fill")
+                    Label("Feed", systemImage: "sparkles")
                 }
                 .tag(0)
+
+            HomeView()
+                .tabItem {
+                    Label("Library", systemImage: "books.vertical.fill")
+                }
+                .tag(1)
 
             SearchView()
                 .tabItem {
                     Label("Search", systemImage: "magnifyingglass")
                 }
-                .tag(1)
+                .tag(2)
 
             SettingsView()
                 .tabItem {
                     Label("Settings", systemImage: "gearshape.fill")
                 }
-                .tag(2)
+                .tag(3)
         }
         .tint(ResurfaceTheme.Colors.accent)
         .preferredColorScheme(.dark)

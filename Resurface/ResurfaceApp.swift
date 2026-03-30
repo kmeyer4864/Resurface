@@ -74,6 +74,9 @@ struct ResurfaceApp: App {
     @State private var showCreateCategory = false
     @State private var deepLinkItemId: UUID?
 
+    /// Onboarding
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -93,6 +96,13 @@ struct ResurfaceApp: App {
                 }
                 .sheet(isPresented: $showCreateCategory) {
                     CategoryCreationView()
+                }
+                .fullScreenCover(isPresented: .init(
+                    get: { !hasCompletedOnboarding },
+                    set: { if !$0 { hasCompletedOnboarding = true } }
+                )) {
+                    CategoryTemplatePickerView()
+                        .onDisappear { hasCompletedOnboarding = true }
                 }
                 .environment(\.openItemId, deepLinkItemId)
         }

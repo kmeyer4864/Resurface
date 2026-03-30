@@ -50,6 +50,14 @@ final class BookmarkItem {
     var resurfaceAt: Date?              // When to send notification (nil = never)
     var resurfaceNotificationId: String? // For cancelling scheduled notification
 
+    // Engagement tracking
+    var lastViewedAt: Date?              // Set when user opens detail view
+    var resurfaceDismissedAt: Date?      // Set when user dismisses from feed
+    var resurfaceDismissCount: Int = 0   // Number of times dismissed (for backoff)
+
+    // Auto-categorization tracking
+    var wasAutoCategorized: Bool = false  // Whether AI assigned the category (vs. user manual pick)
+
     // Relationships
     @Relationship(deleteRule: .cascade)
     var webContent: WebContent?
@@ -161,6 +169,10 @@ extension BookmarkItem {
     var extractedFieldKeys: [String] {
         // Return keys in a sensible order (alphabetical for now)
         extractedFields.keys.sorted()
+    }
+
+    var hasBeenViewed: Bool {
+        lastViewedAt != nil
     }
 
     var isPending: Bool {
