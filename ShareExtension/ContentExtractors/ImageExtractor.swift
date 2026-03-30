@@ -26,8 +26,15 @@ struct ImageExtractor: ContentExtractor {
         // If we got significant text, it's likely a screenshot
         let contentType: ContentType = (extractedText?.count ?? 0) > 50 ? .screenshot : .image
 
+        // Determine actual image format from provider
+        let fileExtension = resolveImageExtension(from: provider)
+        let mimeType = UTType(filenameExtension: fileExtension)?.preferredMIMEType ?? "image/jpeg"
+
         var content = ExtractedContent(contentType: contentType)
         content.imageData = imageData
+        content.fileData = imageData
+        content.fileExtension = fileExtension
+        content.mimeType = mimeType
         content.text = extractedText
 
         // Generate title from OCR text or use default
@@ -96,6 +103,23 @@ struct ImageExtractor: ContentExtractor {
         }
 
         return "Screenshot \(Date().formatted(date: .abbreviated, time: .shortened))"
+    }
+
+    /// Determine the actual image file extension from the provider's registered types
+    private func resolveImageExtension(from provider: NSItemProvider) -> String {
+        let typeToExtension: [(UTType, String)] = [
+            (.png, "png"),
+            (.heic, "heic"),
+            (.gif, "gif"),
+            (.jpeg, "jpg"),
+        ]
+
+        for (utType, ext) in typeToExtension {
+            if provider.hasItemConformingToTypeIdentifier(utType.identifier) {
+                return ext
+            }
+        }
+        return "jpg"
     }
 
     private func loadImage(from provider: NSItemProvider) async throws -> Data {

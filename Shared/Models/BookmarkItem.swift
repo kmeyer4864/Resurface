@@ -17,6 +17,8 @@ final class BookmarkItem {
     // Media
     var thumbnailPath: String?
     var mediaPath: String?
+    var originalFilename: String?
+    var mimeType: String?
 
     // Organization (AI-generated)
     var category: Category?
@@ -173,6 +175,15 @@ extension BookmarkItem {
 
     var hasBeenViewed: Bool {
         lastViewedAt != nil
+    }
+
+    /// Resolves the relative mediaPath to an absolute file URL in the App Group container
+    var resolvedMediaURL: URL? {
+        guard let mediaPath = mediaPath,
+              let container = AppGroupContainer.containerURL else { return nil }
+        return container
+            .appendingPathComponent("Documents", isDirectory: true)
+            .appendingPathComponent(mediaPath)
     }
 
     var isPending: Bool {

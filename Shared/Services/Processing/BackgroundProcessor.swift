@@ -281,7 +281,7 @@ extension ContentType {
         switch self {
         case .url, .article, .youtube, .video, .socialPost:
             return true
-        case .image, .screenshot, .text, .pdf, .unknown:
+        case .image, .screenshot, .text, .pdf, .file, .unknown:
             return false
         }
     }

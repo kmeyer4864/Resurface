@@ -20,5 +20,9 @@ struct ExtractedContent {
     var text: String?
     var url: URL?
     var imageData: Data?
+    var fileData: Data?
+    var originalFilename: String?
+    var fileExtension: String?
+    var mimeType: String?
     var metadata: [String: Any] = [:]
 }

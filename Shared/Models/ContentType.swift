@@ -12,6 +12,7 @@ enum ContentType: String, Codable, CaseIterable, Sendable {
     case socialPost = "socialPost"
     case text = "text"
     case pdf = "pdf"
+    case file = "file"
     case unknown = "unknown"
 
     /// Human-readable display name
@@ -26,6 +27,7 @@ enum ContentType: String, Codable, CaseIterable, Sendable {
         case .socialPost: return "Social Post"
         case .text: return "Text"
         case .pdf: return "PDF"
+        case .file: return "File"
         case .unknown: return "Unknown"
         }
     }
@@ -42,6 +44,7 @@ enum ContentType: String, Codable, CaseIterable, Sendable {
         case .socialPost: return "bubble.left"
         case .text: return "text.alignleft"
         case .pdf: return "doc.fill"
+        case .file: return "doc"
         case .unknown: return "questionmark.circle"
         }
     }

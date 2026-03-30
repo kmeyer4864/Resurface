@@ -10,6 +10,7 @@ actor ContentExtractorRegistry {
         PDFExtractor(),    // Handle PDFs before generic URLs
         ImageExtractor(),  // Handle images with OCR
         URLExtractor(),    // Handle web URLs
+        FileExtractor(),   // Handle generic files (docs, archives, audio, etc.)
         TextExtractor()    // Fallback for plain text
     ]
 

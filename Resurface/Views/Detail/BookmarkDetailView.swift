@@ -1,11 +1,12 @@
 import SwiftUI
 import SwiftData
+import QuickLook
 
 struct BookmarkDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var item: BookmarkItem
     @State private var isRetryingAI = false
-    @State private var showImagePreview = false
+    @State private var quickLookURL: URL?
 
     var body: some View {
         ScrollView {
@@ -95,6 +96,17 @@ struct BookmarkDetailView: View {
                         }
                     }
 
+                    // Export stored file
+                    if let fileURL = item.resolvedMediaURL {
+                        if item.sourceURL == nil { Divider() }
+                        ShareLink(
+                            item: fileURL,
+                            preview: SharePreview(item.originalFilename ?? item.displayTitle)
+                        ) {
+                            Label("Export File", systemImage: "square.and.arrow.up")
+                        }
+                    }
+
                     Divider()
 
                     Button(role: .destructive) {
@@ -108,87 +120,66 @@ struct BookmarkDetailView: View {
                 }
             }
         }
-        .fullScreenCover(isPresented: $showImagePreview) {
-            if let thumbnailPath = item.thumbnailPath {
-                ImagePreviewView(imagePath: thumbnailPath, title: item.displayTitle)
-            }
-        }
+        .quickLookPreview($quickLookURL)
     }
 
     // MARK: - Open Original Button
 
     @ViewBuilder
     private var openOriginalButton: some View {
-        // Different actions based on content type
+        // URL-based content: open in browser
         if let url = item.sourceURL {
-            // URL-based content - open in browser
             Link(destination: url) {
-                HStack(spacing: Spacing.sm) {
-                    Image(systemName: "arrow.up.right.square.fill")
-                        .font(.system(size: 18))
-                    Text("Open Original")
-                        .font(Typography.bodyMedium)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
-                }
-                .foregroundStyle(ResurfaceTheme.Colors.accent)
-                .padding(Spacing.md)
-                .background(ResurfaceTheme.Colors.surfaceFallback)
-                .clipShape(RoundedRectangle(cornerRadius: Spacing.cornerRadius.large))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Spacing.cornerRadius.large)
-                        .stroke(ResurfaceTheme.Colors.accent.opacity(0.3), lineWidth: 1)
-                )
-            }
-        } else if item.contentType == .image || item.contentType == .screenshot {
-            // Image content - show full screen preview
-            Button {
-                showImagePreview = true
-            } label: {
-                HStack(spacing: Spacing.sm) {
-                    Image(systemName: "photo.fill")
-                        .font(.system(size: 18))
-                    Text("View Full Image")
-                        .font(Typography.bodyMedium)
-                    Spacer()
-                    Image(systemName: "arrow.up.left.and.arrow.down.right")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
-                }
-                .foregroundStyle(ResurfaceTheme.Colors.accent)
-                .padding(Spacing.md)
-                .background(ResurfaceTheme.Colors.surfaceFallback)
-                .clipShape(RoundedRectangle(cornerRadius: Spacing.cornerRadius.large))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Spacing.cornerRadius.large)
-                        .stroke(ResurfaceTheme.Colors.accent.opacity(0.3), lineWidth: 1)
-                )
-            }
-        } else if item.contentType == .pdf, let mediaPath = item.mediaPath {
-            // PDF content - share/open action
-            ShareLink(item: URL(fileURLWithPath: mediaPath)) {
-                HStack(spacing: Spacing.sm) {
-                    Image(systemName: "doc.fill")
-                        .font(.system(size: 18))
-                    Text("Open PDF")
-                        .font(Typography.bodyMedium)
-                    Spacer()
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
-                }
-                .foregroundStyle(ResurfaceTheme.Colors.accent)
-                .padding(Spacing.md)
-                .background(ResurfaceTheme.Colors.surfaceFallback)
-                .clipShape(RoundedRectangle(cornerRadius: Spacing.cornerRadius.large))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Spacing.cornerRadius.large)
-                        .stroke(ResurfaceTheme.Colors.accent.opacity(0.3), lineWidth: 1)
+                openButtonContent(
+                    icon: "arrow.up.right.square.fill",
+                    label: "Open Original",
+                    trailingIcon: "chevron.right"
                 )
             }
         }
+
+        // File-based content: open with QuickLook (works for ALL file types)
+        if item.mediaPath != nil {
+            Button {
+                quickLookURL = item.resolvedMediaURL
+            } label: {
+                openButtonContent(
+                    icon: viewFileIcon,
+                    label: "View \(item.contentType.displayName)",
+                    trailingIcon: "eye"
+                )
+            }
+        }
+    }
+
+    private var viewFileIcon: String {
+        switch item.contentType {
+        case .image, .screenshot: return "photo.fill"
+        case .pdf: return "doc.fill"
+        case .file: return "doc"
+        default: return item.contentType.iconName
+        }
+    }
+
+    private func openButtonContent(icon: String, label: String, trailingIcon: String) -> some View {
+        HStack(spacing: Spacing.sm) {
+            Image(systemName: icon)
+                .font(.system(size: 18))
+            Text(label)
+                .font(Typography.bodyMedium)
+            Spacer()
+            Image(systemName: trailingIcon)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+        }
+        .foregroundStyle(ResurfaceTheme.Colors.accent)
+        .padding(Spacing.md)
+        .background(ResurfaceTheme.Colors.surfaceFallback)
+        .clipShape(RoundedRectangle(cornerRadius: Spacing.cornerRadius.large))
+        .overlay(
+            RoundedRectangle(cornerRadius: Spacing.cornerRadius.large)
+                .stroke(ResurfaceTheme.Colors.accent.opacity(0.3), lineWidth: 1)
+        )
     }
 
     // MARK: - Hero Section
@@ -664,80 +655,6 @@ struct BookmarkDetailView: View {
                     RoundedRectangle(cornerRadius: Spacing.cornerRadius.large)
                         .stroke(ResurfaceTheme.Colors.border, lineWidth: 0.5)
                 )
-        }
-    }
-}
-
-// MARK: - Image Preview View
-
-struct ImagePreviewView: View {
-    let imagePath: String
-    let title: String
-    @Environment(\.dismiss) private var dismiss
-    @State private var scale: CGFloat = 1.0
-    @State private var lastScale: CGFloat = 1.0
-
-    var body: some View {
-        NavigationStack {
-            GeometryReader { geometry in
-                if let uiImage = UIImage(contentsOfFile: imagePath) {
-                    ScrollView([.horizontal, .vertical], showsIndicators: false) {
-                        Image(uiImage: uiImage)
-                            .resizable()
-                            .scaledToFit()
-                            .scaleEffect(scale)
-                            .frame(
-                                width: geometry.size.width * scale,
-                                height: geometry.size.height * scale
-                            )
-                    }
-                    .gesture(
-                        MagnificationGesture()
-                            .onChanged { value in
-                                let delta = value / lastScale
-                                lastScale = value
-                                scale = min(max(scale * delta, 1), 4)
-                            }
-                            .onEnded { _ in
-                                lastScale = 1.0
-                            }
-                    )
-                    .onTapGesture(count: 2) {
-                        withAnimation {
-                            scale = scale > 1 ? 1 : 2
-                        }
-                    }
-                } else {
-                    ContentUnavailableView(
-                        "Image Not Found",
-                        systemImage: "photo.badge.exclamationmark",
-                        description: Text("The original image could not be loaded.")
-                    )
-                }
-            }
-            .background(Color.black)
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(.white.opacity(0.7))
-                    }
-                }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    if let uiImage = UIImage(contentsOfFile: imagePath) {
-                        ShareLink(item: Image(uiImage: uiImage), preview: SharePreview(title, image: Image(uiImage: uiImage)))
-                    }
-                }
-            }
-            .toolbarBackground(.black, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
         }
     }
 }

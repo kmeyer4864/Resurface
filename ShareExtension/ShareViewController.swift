@@ -502,16 +502,14 @@ struct ShareExtensionView: View {
                     item.resurfaceAt = resurfaceDate
                 }
 
-                // Save media if present
-                if let imageData = content.imageData {
-                    let mediaURL = containerURL
-                        .appendingPathComponent("Documents/media", isDirectory: true)
-                    try FileManager.default.createDirectory(at: mediaURL, withIntermediateDirectories: true)
-
-                    let fileName = "\(item.id.uuidString).jpg"
-                    let fileURL = mediaURL.appendingPathComponent(fileName)
-                    try imageData.write(to: fileURL)
-                    item.mediaPath = "media/\(fileName)"
+                // Save media/file if present (unified for all content types)
+                if let fileData = content.fileData ?? content.imageData {
+                    let ext = content.fileExtension ?? "dat"
+                    let fileName = "\(item.id.uuidString).\(ext)"
+                    let relativePath = try AppGroupContainer.saveMedia(data: fileData, filename: fileName)
+                    item.mediaPath = relativePath
+                    item.originalFilename = content.originalFilename
+                    item.mimeType = content.mimeType
                 }
 
                 context.insert(item)

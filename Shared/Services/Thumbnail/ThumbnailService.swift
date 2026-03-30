@@ -35,7 +35,7 @@ actor ThumbnailService {
         case .video, .socialPost:
             return await generateURLThumbnail(for: item, metadata: metadata)
 
-        case .text, .pdf, .unknown:
+        case .text, .pdf, .file, .unknown:
             return nil // No thumbnail for these types
         }
     }

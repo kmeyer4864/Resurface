@@ -18,8 +18,15 @@ struct PDFExtractor: ContentExtractor {
 
         var content = ExtractedContent(contentType: .pdf)
         content.text = extractedText
-        content.imageData = pdfData // Store PDF data for later access
+        content.fileData = pdfData
+        content.fileExtension = "pdf"
+        content.mimeType = "application/pdf"
         content.url = sourceURL
+
+        // Preserve original filename
+        if let url = sourceURL {
+            content.originalFilename = url.lastPathComponent
+        }
 
         // Try to get a reasonable title from the filename or first line of text
         if let url = sourceURL {
