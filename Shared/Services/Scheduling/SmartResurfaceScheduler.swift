@@ -10,6 +10,11 @@ enum SmartResurfaceScheduler {
         category: Category?,
         aiSuggestedDays: Int?
     ) -> Date? {
+        // Skip scheduling for categories that don't show in feed
+        if category?.showInFeed == false {
+            return nil
+        }
+
         let calendar = Calendar.current
         let now = Date()
 
@@ -63,7 +68,7 @@ enum SmartResurfaceScheduler {
             // News/social → stale quickly, no auto-resurface
             return nil
 
-        case .url, .text, .unknown:
+        case .url, .text, .file, .unknown:
             // Generic → 1 week
             let target = calendar.date(byAdding: .day, value: 7, to: now)!
             return calendar.date(bySettingHour: 9, minute: 0, second: 0, of: target)

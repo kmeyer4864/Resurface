@@ -13,13 +13,53 @@ struct ResurfaceCard: View {
 
     private var timeContext: String {
         let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
-        return "Saved \(formatter.localizedString(for: item.createdAt, relativeTo: Date()))"
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: item.createdAt, relativeTo: Date())
+    }
+
+    private var firstInsight: String? {
+        item.keyInsights.first
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Thumbnail
+            // Hero thumbnail with gradient overlay
+            thumbnailHero
+
+            // Content area
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                // Top row: content type + source + time
+                metadataRow
+
+                // Title
+                Text(item.displayTitle)
+                    .font(Typography.bodyMedium)
+                    .foregroundStyle(ResurfaceTheme.Colors.textPrimary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+
+                // Key insight snippet
+                if let insight = firstInsight {
+                    Text(insight)
+                        .font(Typography.caption)
+                        .foregroundStyle(ResurfaceTheme.Colors.textSecondary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+
+                // Bottom row: reason + actions
+                bottomRow
+            }
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.sm)
+        }
+        .resurfaceCard()
+    }
+
+    // MARK: - Thumbnail Hero
+
+    private var thumbnailHero: some View {
+        ZStack(alignment: .bottomLeading) {
             ThumbnailView(
                 contentType: item.contentType,
                 categoryColor: nil,
@@ -27,100 +67,100 @@ struct ResurfaceCard: View {
                 thumbnailPath: item.thumbnailPath
             )
             .frame(maxWidth: .infinity)
-            .frame(height: 160)
+            .frame(height: 180)
             .clipped()
 
-            // Content
-            VStack(alignment: .leading, spacing: Spacing.sm) {
-                // Reason label
-                HStack(spacing: 4) {
-                    Image(systemName: resurfaceItem.reason.icon)
-                        .font(.system(size: 10))
-                    Text(resurfaceItem.reason.label)
+            // Gradient overlay for readability
+            LinearGradient(
+                colors: [
+                    .clear,
+                    .clear,
+                    Color.black.opacity(0.6)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 180)
+
+            // Category pill overlaid on thumbnail
+            if let category = item.category {
+                HStack(spacing: 3) {
+                    Text(category.emoji)
+                        .font(.system(size: 11))
+                    Text(category.name)
                         .font(Typography.micro)
+                        .foregroundStyle(.white.opacity(0.9))
                 }
-                .foregroundStyle(ResurfaceTheme.Colors.accent)
-
-                // Title
-                Text(item.displayTitle)
-                    .font(Typography.subheadlineMedium)
-                    .foregroundStyle(ResurfaceTheme.Colors.textPrimary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-
-                // Source + time context
-                HStack(spacing: Spacing.xs) {
-                    HStack(spacing: 2) {
-                        Image(systemName: sourceInfo.icon)
-                            .font(.system(size: 9))
-                        Text(sourceInfo.name)
-                            .font(Typography.micro)
-                    }
-                    .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
-
-                    Circle()
-                        .fill(ResurfaceTheme.Colors.textTertiary)
-                        .frame(width: 2, height: 2)
-
-                    Text(timeContext)
-                        .font(Typography.micro)
-                        .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
-                }
-
-                // Category pill
-                if let category = item.category {
-                    HStack(spacing: 2) {
-                        Text(category.emoji)
-                            .font(.system(size: 10))
-                        Text(category.name)
-                            .font(Typography.micro)
-                            .foregroundStyle(ResurfaceTheme.Colors.textSecondary)
-                    }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(ResurfaceTheme.Colors.surfaceElevatedFallback)
-                    .clipShape(Capsule())
-                }
-
-                // Actions
-                HStack(spacing: Spacing.sm) {
-                    Spacer()
-
-                    Button {
-                        onSnooze()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "clock.arrow.circlepath")
-                                .font(.system(size: 12))
-                            Text("Tomorrow")
-                                .font(Typography.caption)
-                        }
-                        .foregroundStyle(ResurfaceTheme.Colors.textSecondary)
-                        .padding(.horizontal, Spacing.sm)
-                        .padding(.vertical, Spacing.xs)
-                        .background(ResurfaceTheme.Colors.surfaceElevatedFallback)
-                        .clipShape(Capsule())
-                    }
-
-                    Button {
-                        onDismiss()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 12))
-                            Text("Dismiss")
-                                .font(Typography.caption)
-                        }
-                        .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
-                        .padding(.horizontal, Spacing.sm)
-                        .padding(.vertical, Spacing.xs)
-                        .background(ResurfaceTheme.Colors.surfaceElevatedFallback)
-                        .clipShape(Capsule())
-                    }
-                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(.ultraThinMaterial)
+                .clipShape(Capsule())
+                .padding(Spacing.sm)
             }
-            .padding(Spacing.md)
         }
-        .resurfaceCard()
+    }
+
+    // MARK: - Metadata Row
+
+    private var metadataRow: some View {
+        HStack(spacing: Spacing.xs) {
+            // Content type badge
+            ContentTypeBadge(contentType: item.contentType)
+
+            Spacer()
+
+            // Source + time
+            HStack(spacing: 4) {
+                Image(systemName: sourceInfo.icon)
+                    .font(.system(size: 9))
+                Text(sourceInfo.name)
+                    .font(Typography.micro)
+                Text("·")
+                    .font(Typography.micro)
+                Text(timeContext)
+                    .font(Typography.micro)
+            }
+            .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+        }
+    }
+
+    // MARK: - Bottom Row
+
+    private var bottomRow: some View {
+        HStack(spacing: Spacing.sm) {
+            // Reason label
+            HStack(spacing: 3) {
+                Image(systemName: resurfaceItem.reason.icon)
+                    .font(.system(size: 9))
+                Text(resurfaceItem.reason.label)
+                    .font(Typography.micro)
+            }
+            .foregroundStyle(ResurfaceTheme.Colors.accent)
+
+            Spacer()
+
+            // Action buttons — compact icon style
+            Button {
+                onSnooze()
+            } label: {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.system(size: 14))
+                    .foregroundStyle(ResurfaceTheme.Colors.textSecondary)
+                    .frame(width: 32, height: 32)
+                    .background(ResurfaceTheme.Colors.surfaceElevatedFallback)
+                    .clipShape(Circle())
+            }
+
+            Button {
+                onDismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+                    .frame(width: 32, height: 32)
+                    .background(ResurfaceTheme.Colors.surfaceElevatedFallback)
+                    .clipShape(Circle())
+            }
+        }
     }
 }

@@ -107,6 +107,7 @@ final class ResurfaceEngine {
             guard let resurfaceAt = item.resurfaceAt,
                   resurfaceAt <= now,
                   !isDismissedRecently(item),
+                  item.category?.showInFeed != false,
                   seen.insert(item.id).inserted else { continue }
             results.append(ResurfaceItem(id: item.id, item: item, reason: .scheduled))
         }
@@ -128,8 +129,9 @@ final class ResurfaceEngine {
 
         guard let items = try? context.fetch(descriptor) else { return [] }
 
+        let feedItems = items.filter { $0.category?.showInFeed != false }
         var results: [ResurfaceItem] = []
-        for item in items.shuffled().prefix(2) {
+        for item in feedItems.shuffled().prefix(2) {
             guard seen.insert(item.id).inserted else { continue }
             results.append(ResurfaceItem(id: item.id, item: item, reason: .neverViewed))
         }
@@ -151,8 +153,9 @@ final class ResurfaceEngine {
 
         guard let items = try? context.fetch(descriptor) else { return [] }
 
+        let feedItems = items.filter { $0.category?.showInFeed != false }
         var results: [ResurfaceItem] = []
-        for item in items.shuffled().prefix(1) {
+        for item in feedItems.shuffled().prefix(1) {
             guard seen.insert(item.id).inserted else { continue }
             results.append(ResurfaceItem(id: item.id, item: item, reason: .serendipity))
         }

@@ -10,6 +10,7 @@ final class Category {
     var aiPrompt: String          // Custom AI instructions for this category
     var isDefault: Bool           // Only one category can be default
     var isArchived: Bool          // Hidden but data preserved
+    var showInFeed: Bool          // Whether items appear in the resurfacing feed
     var sortOrder: Int            // For manual ordering
     var createdAt: Date
 
@@ -24,6 +25,7 @@ final class Category {
         aiPrompt: String = "",
         isDefault: Bool = false,
         isArchived: Bool = false,
+        showInFeed: Bool = true,
         sortOrder: Int = 0
     ) {
         self.id = id
@@ -33,6 +35,7 @@ final class Category {
         self.aiPrompt = aiPrompt
         self.isDefault = isDefault
         self.isArchived = isArchived
+        self.showInFeed = showInFeed
         self.sortOrder = sortOrder
         self.createdAt = Date()
     }

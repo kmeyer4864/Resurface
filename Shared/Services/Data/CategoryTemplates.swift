@@ -11,6 +11,8 @@ struct CategoryTemplates {
         let aiPrompt: String
         /// Keywords the AI might return that map to this template
         let matchKeywords: [String]
+        /// Whether items in this category appear in the resurfacing feed
+        let showInFeed: Bool
     }
 
     static let all: [Template] = [
@@ -19,42 +21,48 @@ struct CategoryTemplates {
             emoji: "🍳",
             description: "Recipes and food inspiration",
             aiPrompt: "Extract recipe name, ingredients list, cooking time, servings, and key preparation steps. Focus on actionable cooking details.",
-            matchKeywords: ["recipe", "cooking", "food", "meal", "dinner", "baking", "cuisine"]
+            matchKeywords: ["recipe", "cooking", "food", "meal", "dinner", "baking", "cuisine"],
+            showInFeed: true
         ),
         Template(
             name: "Articles",
             emoji: "📖",
             description: "Long reads and interesting articles",
             aiPrompt: "Extract the main thesis, key arguments, notable quotes, and an estimated reading time. Summarize the core message concisely.",
-            matchKeywords: ["article", "blog", "essay", "editorial", "longread", "opinion", "analysis"]
+            matchKeywords: ["article", "blog", "essay", "editorial", "longread", "opinion", "analysis"],
+            showInFeed: true
         ),
         Template(
             name: "Products",
             emoji: "🛍️",
             description: "Products and shopping finds",
             aiPrompt: "Extract product name, price, brand, key features, and where to buy. Note any deals or comparisons mentioned.",
-            matchKeywords: ["product", "shopping", "buy", "purchase", "deal", "review", "gadget", "gear"]
+            matchKeywords: ["product", "shopping", "buy", "purchase", "deal", "review", "gadget", "gear"],
+            showInFeed: false
         ),
         Template(
             name: "Travel",
             emoji: "✈️",
             description: "Travel destinations and planning",
             aiPrompt: "Extract destination, recommended dates or seasons, estimated costs, things to do, and booking links or tips.",
-            matchKeywords: ["travel", "trip", "destination", "hotel", "flight", "vacation", "itinerary"]
+            matchKeywords: ["travel", "trip", "destination", "hotel", "flight", "vacation", "itinerary"],
+            showInFeed: true
         ),
         Template(
             name: "Work",
             emoji: "💼",
             description: "Professional resources and references",
             aiPrompt: "Extract key takeaways, action items, deadlines, and relevant contacts or tools. Focus on professional utility.",
-            matchKeywords: ["work", "business", "career", "professional", "management", "strategy", "meeting"]
+            matchKeywords: ["work", "business", "career", "professional", "management", "strategy", "meeting"],
+            showInFeed: false
         ),
         Template(
             name: "Inspiration",
             emoji: "✨",
             description: "Design, ideas, and creative inspiration",
             aiPrompt: "Extract the creative concept, medium or format, style elements, and what makes it notable or inspiring.",
-            matchKeywords: ["design", "art", "inspiration", "creative", "aesthetic", "portfolio", "mood"]
+            matchKeywords: ["design", "art", "inspiration", "creative", "aesthetic", "portfolio", "mood"],
+            showInFeed: true
         ),
     ]
 

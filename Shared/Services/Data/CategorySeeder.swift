@@ -129,6 +129,7 @@ actor CategorySeeder {
             emoji: template.emoji,
             description: template.description,
             aiPrompt: template.aiPrompt,
+            showInFeed: template.showInFeed,
             sortOrder: sortOrder
         )
         context.insert(category)

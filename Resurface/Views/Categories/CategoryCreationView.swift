@@ -11,6 +11,7 @@ struct CategoryCreationView: View {
     @State private var emoji: String = "📁"
     @State private var description: String = ""
     @State private var aiPrompt: String = ""
+    @State private var showInFeed: Bool = true
     @State private var showPromptEditor = false
 
     // Validation
@@ -36,6 +37,9 @@ struct CategoryCreationView: View {
 
                     // AI Prompt section
                     aiPromptSection
+
+                    // Feed visibility
+                    feedToggleSection
 
                     // Tips
                     tipsSection
@@ -202,6 +206,26 @@ struct CategoryCreationView: View {
         }
     }
 
+    private var feedToggleSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            Toggle(isOn: $showInFeed) {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text("Show in Feed")
+                        .font(Typography.subheadlineMedium)
+                        .foregroundStyle(ResurfaceTheme.Colors.textPrimary)
+
+                    Text("Items will appear in your daily resurfacing feed")
+                        .font(Typography.caption)
+                        .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+                }
+            }
+            .tint(ResurfaceTheme.Colors.accent)
+            .padding()
+            .background(ResurfaceTheme.Colors.surfaceFallback)
+            .clipShape(RoundedRectangle(cornerRadius: Spacing.cornerRadius.medium))
+        }
+    }
+
     private var tipsSection: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Text("Tips for good results")
@@ -279,6 +303,7 @@ struct CategoryCreationView: View {
             description: trimmedDesc,
             aiPrompt: aiPrompt.isEmpty ? "Analyze this content and extract key information relevant to: \(trimmedDesc)" : aiPrompt,
             isDefault: false,
+            showInFeed: showInFeed,
             sortOrder: maxSortOrder + 1
         )
 
@@ -307,6 +332,7 @@ struct CategoryEditView: View {
     @State private var emoji: String = ""
     @State private var description: String = ""
     @State private var aiPrompt: String = ""
+    @State private var showInFeed: Bool = true
     @State private var showPromptEditor = false
 
     var body: some View {
@@ -353,6 +379,25 @@ struct CategoryEditView: View {
                                 RoundedRectangle(cornerRadius: Spacing.cornerRadius.medium)
                                     .stroke(ResurfaceTheme.Colors.border, lineWidth: 0.5)
                             )
+                    }
+
+                    // Feed visibility
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        Toggle(isOn: $showInFeed) {
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                Text("Show in Feed")
+                                    .font(Typography.subheadlineMedium)
+                                    .foregroundStyle(ResurfaceTheme.Colors.textPrimary)
+
+                                Text("Items will appear in your daily resurfacing feed")
+                                    .font(Typography.caption)
+                                    .foregroundStyle(ResurfaceTheme.Colors.textTertiary)
+                            }
+                        }
+                        .tint(ResurfaceTheme.Colors.accent)
+                        .padding()
+                        .background(ResurfaceTheme.Colors.surfaceFallback)
+                        .clipShape(RoundedRectangle(cornerRadius: Spacing.cornerRadius.medium))
                     }
 
                     // AI Prompt
@@ -431,6 +476,7 @@ struct CategoryEditView: View {
                 emoji = category.emoji
                 description = category.categoryDescription
                 aiPrompt = category.aiPrompt
+                showInFeed = category.showInFeed
             }
         }
     }
@@ -440,6 +486,7 @@ struct CategoryEditView: View {
         category.emoji = emoji
         category.categoryDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
         category.aiPrompt = aiPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        category.showInFeed = showInFeed
         category.markUpdated()
 
         try? modelContext.save()

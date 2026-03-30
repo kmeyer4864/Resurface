@@ -162,7 +162,7 @@
 		3D6FD0A086F1FCD4E241E510 /* CategoryTemplatePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryTemplatePickerView.swift; sourceTree = "<group>"; };
 		3EB48B52BFBC67AAECB8617A /* SmartResurfaceScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartResurfaceScheduler.swift; sourceTree = "<group>"; };
 		41FF61F9BF3DF4DB5D3B7E03 /* AppGroupContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGroupContainer.swift; sourceTree = "<group>"; };
-		4CACE5087BDFDB5A4A2D1CB1 /* Resurface.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Resurface.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4CACE5087BDFDB5A4A2D1CB1 /* Resurface.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Resurface.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		51AEC16D819DCA37C508EACF /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		51BFE1E7F59976B15CE05B01 /* ThumbnailService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailService.swift; sourceTree = "<group>"; };
 		54B9A6A6F76BE58683CA30C4 /* MetadataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetadataService.swift; sourceTree = "<group>"; };
@@ -206,7 +206,7 @@
 		EE20AAD7CD4D312295E4DAAB /* ResurfaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResurfaceTests.swift; sourceTree = "<group>"; };
 		F40FE40DC7224576F442E2B0 /* ContentExtractorRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentExtractorRegistry.swift; sourceTree = "<group>"; };
 		F816534F2C6D69F8EABBBA2F /* ResurfaceUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResurfaceUITests.swift; sourceTree = "<group>"; };
-		FB7A93CBFDC94CF48F2DAE74 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		FB7A93CBFDC94CF48F2DAE74 /* ShareExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		FC91A1E8EC90A91BFC305189 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		FD7F2B21757C44677188CC0B /* ShareNotification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareNotification.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -781,7 +781,6 @@
 				CODE_SIGN_ENTITLEMENTS = Resurface/Resurface.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 9F82K4F98G;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Resurface/Info.plist;
 				INFOPLIST_GENERATION_MODE = GeneratedFile;
@@ -804,7 +803,6 @@
 				CODE_SIGN_ENTITLEMENTS = Resurface/Resurface.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 9F82K4F98G;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Resurface/Info.plist;
 				INFOPLIST_GENERATION_MODE = GeneratedFile;
@@ -859,7 +857,6 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 9F82K4F98G;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ShareExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -937,7 +934,6 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 9F82K4F98G;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ShareExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
